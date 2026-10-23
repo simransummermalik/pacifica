@@ -14,6 +14,7 @@ struct HomeView: View {
                         TopBar(onQRTap: { showQR = true })
                         BalanceCard(hideBalance: $hideBalance)
                         SavingsCard()
+                        FishingCard()
                     }
                 }
                 .padding(.horizontal, 16)
@@ -101,6 +102,7 @@ private struct BalanceCard: View {
                 Button {} label: {
                     Text("Withdraw")
                         .font(.title3.weight(.semibold))
+                        .foregroundStyle(Theme.text)
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .buttonStyle(.glass)
@@ -136,6 +138,27 @@ private struct SavingsCard: View {
                 .glassEffect(.regular, in: .circle)
         }
         .padding(24)
+        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardRadius))
+    }
+}
+
+private struct FishingCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Friends")
+                    .font(.title3.weight(.semibold))
+                Text("Let's go fishing with your friends")
+                    .font(.system(size: 36, weight: .bold))
+            }
+            .foregroundStyle(Theme.text)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(24)
+
+            BobberScene()
+                .frame(height: 260)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius))
         .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardRadius))
     }
 }

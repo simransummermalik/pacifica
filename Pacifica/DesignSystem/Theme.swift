@@ -21,6 +21,8 @@ enum Theme {
     static let text = Color(light: charcoal, dark: .white)
     static let textSecondary = text.opacity(0.55)
     static let accent = teal
+    /// Light fill for secondary buttons on the white / charcoal surface.
+    static let subtleFill = text.opacity(0.07)
     static let highlight = coral
     static let cardRadius: CGFloat = 28
 }

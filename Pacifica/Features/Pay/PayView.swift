@@ -16,8 +16,8 @@ struct PayView: View {
         .padding(.horizontal, 20)
         .padding(.bottom, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .foregroundStyle(Theme.ink)
-        .background(Theme.background.ignoresSafeArea())
+        .foregroundStyle(Theme.text)
+        .background(AppBackground())
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .sensoryFeedback(.selection, trigger: viewModel.validInputCount)
         .sensoryFeedback(.warning, trigger: viewModel.invalidInputCount)
@@ -69,13 +69,13 @@ struct PayView: View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
                 Button("Pool") {}
-                    .buttonStyle(PillButtonStyle(fill: Theme.translucentFill, foreground: Theme.ink))
+                    .buttonStyle(PillButtonStyle(fill: Theme.subtleFill, foreground: Theme.text))
                 Button("Request") { viewModel.request() }
-                    .buttonStyle(PillButtonStyle(fill: Theme.translucentFill, foreground: Theme.ink))
+                    .buttonStyle(PillButtonStyle(fill: Theme.subtleFill, foreground: Theme.text))
                     .disabled(viewModel.isZero)
             }
             Button("Pay") { viewModel.pay() }
-                .buttonStyle(PillButtonStyle(fill: Theme.primaryButtonFill, foreground: Theme.primaryButtonText))
+                .buttonStyle(PillButtonStyle(fill: Theme.accent, foreground: .white))
                 .disabled(viewModel.isZero)
         }
     }
@@ -91,7 +91,7 @@ private struct CircleIconButton: View {
             Image(systemName: systemName)
                 .font(.system(size: 18, weight: .semibold))
                 .frame(width: 44, height: 44)
-                .background(Theme.translucentFill, in: Circle())
+                .background(Theme.subtleFill, in: Circle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
