@@ -44,9 +44,9 @@ struct AuthView: View {
             .scrollDismissesKeyboard(.interactively)
             .scrollBounceBehavior(.basedOnSize)
         }
-        .foregroundStyle(Theme.ink)
-        .tint(Theme.ink)
-        .background(Theme.background.ignoresSafeArea())
+        .foregroundStyle(Theme.text)
+        .tint(Theme.text)
+        .background(AppBackground())
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .sensoryFeedback(.warning, trigger: viewModel.failedAttempts)
         .onAppear { hasAppeared = true }
@@ -57,13 +57,12 @@ struct AuthView: View {
     private var wordmark: some View {
         VStack(spacing: 8) {
             Text("Pacifica")
-                .font(.system(size: 88, weight: .bold, design: .rounded))
-                .lineLimit(1)
-                .minimumScaleFactor(0.4)
-            Text("Your money, out of the deep end.")
-                .font(.system(.headline, design: .rounded))
-                .foregroundStyle(.secondary)
+                .font(.title2.weight(.bold))
+            Text("When your money is on the deep end, bring your competitive side and we'll get you hooked.")
+                .font(.headline)
+                .foregroundStyle(Theme.textSecondary)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -113,7 +112,7 @@ struct AuthView: View {
 
             if let errorMessage = viewModel.errorMessage {
                 Text(errorMessage)
-                    .font(.system(.subheadline, design: .rounded))
+                    .font(.subheadline)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 20)
                     .transition(.opacity)
@@ -137,11 +136,11 @@ struct AuthView: View {
                     .opacity(viewModel.isSigningIn ? 0 : 1)
                 if viewModel.isSigningIn {
                     ProgressView()
-                        .tint(Theme.primaryButtonText)
+                        .tint(Theme.surface)
                 }
             }
         }
-        .buttonStyle(.primaryPill)
+        .buttonStyle(PillButtonStyle(fill: Theme.text, foreground: Theme.surface, font: .title3.weight(.semibold)))
         // Dimmed until both fields have text; stays full strength (but inert) while signing in.
         .disabled(viewModel.email.isEmpty || viewModel.password.isEmpty)
         .allowsHitTesting(!viewModel.isSigningIn)
@@ -152,7 +151,7 @@ struct AuthView: View {
             viewModel.useDemoAccount()
             focusedField = .password
         }
-        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+        .font(.subheadline.weight(.semibold))
         .buttonStyle(.plain)
         .frame(minHeight: 44)
         .disabled(viewModel.isSigningIn)
@@ -166,7 +165,7 @@ struct AuthView: View {
 
 // MARK: - Field container
 
-/// Translucent rounded field matching the Pool/Request fill and the app's card radius.
+/// Rounded field in the Home screen's glass card style.
 private struct AuthField<Content: View, Trailing: View>: View {
     let systemImage: String
     let content: Content
@@ -185,16 +184,16 @@ private struct AuthField<Content: View, Trailing: View>: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: systemImage)
-                .font(.system(.body, design: .rounded, weight: .semibold))
+                .font(.body.weight(.semibold))
                 .frame(width: 24)
             content
-                .font(.system(.body, design: .rounded))
+                .font(.body)
             trailing
         }
         .padding(.leading, 20)
         .padding(.trailing, 8)
         .frame(minHeight: 56)
-        .background(Theme.translucentFill, in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardRadius))
     }
 }
 
