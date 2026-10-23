@@ -155,7 +155,7 @@ private struct TopOfReefRow: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: "trophy.fill")
-                    .foregroundStyle(Theme.coral)
+                    .foregroundStyle(Theme.yellow)
                 Text("Top of the reef")
                     .font(.headline)
             }
@@ -183,15 +183,15 @@ private struct TopOfReefRow: View {
             VStack(spacing: 6) {
                 Text(ranked.friend.initials)
                     .font(.system(size: isFirst ? 18 : 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(ranked.friend.isYou ? Color.white : Theme.text)
+                    .foregroundStyle(ranked.friend.isYou ? Theme.charcoal : Theme.text)
                     .frame(width: isFirst ? 62 : 52, height: isFirst ? 62 : 52)
-                    .glassEffect(ranked.friend.isYou ? .regular.tint(Theme.coral) : .regular, in: .circle)
+                    .glassEffect(ranked.friend.isYou ? .regular.tint(Theme.yellow) : .regular, in: .circle)
                     .overlay(alignment: .topTrailing) {
                         Text("\(ranked.rank)")
                             .font(.system(size: 11, weight: .heavy, design: .rounded))
-                            .foregroundStyle(Color.white)
+                            .foregroundStyle(isFirst ? Theme.charcoal : Color.white)
                             .frame(width: 20, height: 20)
-                            .background(isFirst ? Theme.coral : Theme.charcoal, in: Circle())
+                            .background(isFirst ? Theme.yellow : Theme.charcoal, in: Circle())
                             .offset(x: 3, y: -3)
                             .zIndex(1)
                     }
@@ -207,7 +207,7 @@ private struct TopOfReefRow: View {
 // MARK: - Ocean track
 
 /// The tall ocean. Depth sets how far down a fish is; sideways it takes a spot that changes with the ranking,
-/// so fish aren't tied to one lane. A thin fishing line runs from the surface down to each fish.
+/// so fish aren't tied to one lane.
 private struct OceanTrack: View {
     var model: ReefViewModel
     let onSelect: (String) -> Void
@@ -245,7 +245,6 @@ private struct OceanTrack: View {
 
                 ForEach(model.friends) { friend in
                     if let place = placements[friend.id] {
-                        line(for: friend, place: place)
                         fish(for: friend, place: place)
                     }
                 }
@@ -281,21 +280,6 @@ private struct OceanTrack: View {
             )
         }
         return result
-    }
-
-    private func line(for friend: ReefFriend, place: Placement) -> some View {
-        ZStack(alignment: .top) {
-            Capsule()
-                .fill(LinearGradient(colors: [.white.opacity(0.65), .white.opacity(0.2)],
-                                     startPoint: .top, endPoint: .bottom))
-                .frame(width: 1.5)
-            Circle()
-                .fill(friend.isYou ? Theme.coral : Color.white)
-                .frame(width: 9, height: 9)
-        }
-        .frame(width: 9, height: place.top)
-        .padding(.leading, place.centerX - 4.5)
-        .allowsHitTesting(false)
     }
 
     private func fish(for friend: ReefFriend, place: Placement) -> some View {
@@ -422,7 +406,7 @@ private struct DepthBar: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(.white.opacity(0.18))
                 Capsule()
-                    .fill(LinearGradient(colors: [Color(hex: 0x6AD0F5), Theme.coral],
+                    .fill(LinearGradient(colors: [Color(hex: 0x6AD0F5), Theme.yellow],
                                          startPoint: .leading, endPoint: .trailing))
                     .frame(width: max(geo.size.width * fraction, 10))
             }

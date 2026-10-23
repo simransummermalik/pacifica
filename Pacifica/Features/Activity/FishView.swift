@@ -35,7 +35,7 @@ struct FishView: View {
     private var fish: some View {
         Image(systemName: isHidden ? "fish" : "fish.fill")
             .font(.system(size: symbolSize, weight: .regular))
-            .foregroundStyle(isYou ? Theme.coral : Color.white)
+            .foregroundStyle(isYou ? Theme.yellow : Color.white)
             .opacity(isHidden ? 0.6 : 1)
             .rotationEffect(.degrees(tilt))
             .scaleEffect(x: facesRight ? 1 : -1)
@@ -66,12 +66,12 @@ struct FishView: View {
                 .font(.system(size: 10, weight: .semibold, design: .rounded))
                 .opacity(0.7)
         }
-        .foregroundStyle(isYou ? Color.white : Theme.charcoal)
+        .foregroundStyle(Theme.charcoal)
         .lineLimit(1)
         .minimumScaleFactor(0.7)
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
-        .background(Capsule().fill(isYou ? Theme.coral : Color.white.opacity(0.92)))
+        .background(Capsule().fill(isYou ? Theme.yellow : Color.white.opacity(0.92)))
         .overlay {
             if isSelected { Capsule().strokeBorder(.white, lineWidth: 2) }
         }

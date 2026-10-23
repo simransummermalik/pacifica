@@ -14,6 +14,8 @@ enum Theme {
 
     static let teal = Color(hex: 0x069494)
     static let coral = Color(hex: 0xE9724C)
+    /// Sunny yellow used for "you" on the Activity page.
+    static let yellow = Color(hex: 0xFFC83D)
     static let charcoal = Color(hex: 0x191716)
 
     /// Screen background for Home and QR: white in light mode, charcoal in dark mode.
