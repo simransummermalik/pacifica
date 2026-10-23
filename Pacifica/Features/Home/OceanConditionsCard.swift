@@ -85,6 +85,12 @@ final class OceanConditionsViewModel {
         }
     }
 
+    /// Real BLS headlines for Ask Pacifica, one per category; nil until data has loaded (never the fallback text).
+    var priceContext: String? {
+        guard case .loaded(let report) = state else { return nil }
+        return report.categories.map(\.headline).joined(separator: "\n")
+    }
+
     /// Loads once; later calls (e.g. the card reappearing) are ignored.
     func load() async {
         guard case .loading = state, !hasStartedLoading else { return }
