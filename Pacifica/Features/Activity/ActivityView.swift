@@ -11,7 +11,6 @@ struct ActivityView: View {
             // space between them and "centered" really means the middle of what you can see.
             VStack(spacing: 0) {
                 PinnedHeader(model: model) { id in focus(on: id, using: proxy) }
-                    .background { OceanPalette.skyTop.ignoresSafeArea(edges: .top) }
 
                 ScrollView {
                     VStack(spacing: 0) {
@@ -19,7 +18,6 @@ struct ActivityView: View {
                             .padding(.top, 6)
                             .padding(.bottom, 26)
                             .frame(maxWidth: .infinity)
-                            .background { SkyGradient() }
 
                         OceanTrack(model: model) { id in focus(on: id, using: proxy) }
                     }
@@ -39,7 +37,7 @@ struct ActivityView: View {
                     .padding(.top, 10)
                     .padding(.bottom, 18)
             }
-            .background { OceanPalette.deep.ignoresSafeArea() }
+            .background { OceanBackdrop().ignoresSafeArea() }
             .task {
                 // Dive in: after the sky and podium show, swim down to your fish.
                 try? await Task.sleep(for: .seconds(1.2))
@@ -60,17 +58,6 @@ struct ActivityView: View {
 
 // MARK: - Sky and pinned header
 
-/// Sky behind the podium. It fades from the page's sky color into the exact blue of the water's surface.
-private struct SkyGradient: View {
-    var body: some View {
-        LinearGradient(
-            colors: [OceanPalette.skyTop, Color(light: Color(hex: 0xBFE8FB), dark: Color(hex: 0x0A2A4A)), OceanPalette.surface],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-    }
-}
-
 /// Title and category chips stay on screen while you dive, so you can switch category from anywhere in the ocean.
 private struct PinnedHeader: View {
     @Bindable var model: ReefViewModel
@@ -83,7 +70,7 @@ private struct PinnedHeader: View {
                     .font(.title.bold())
                 Text("resets Monday")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(OceanPalette.ink.opacity(0.65))
                 Spacer()
                 Button {
                     onFocusYou("you")
@@ -100,6 +87,7 @@ private struct PinnedHeader: View {
 
             CategoryChips(model: model, onChange: { onFocusYou(model.selectedID) })
         }
+        .foregroundStyle(OceanPalette.ink)
         .padding(.top, 6)
         .padding(.bottom, 10)
     }
@@ -133,7 +121,7 @@ private struct CategoryChips: View {
         } label: {
             Label(category.title, systemImage: category.systemImage)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(isSelected ? Color.white : Theme.text)
+                .foregroundStyle(isSelected ? Color.white : OceanPalette.ink)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
                 .glassEffect(isSelected ? .regular.tint(Theme.accent).interactive() : .regular.interactive(),
@@ -172,7 +160,7 @@ private struct TopOfReefRow: View {
             }
             .scrollIndicators(.hidden)
         }
-        .foregroundStyle(Theme.text)
+        .foregroundStyle(OceanPalette.ink)
     }
 
     private func entry(_ ranked: RankedFriend) -> some View {
@@ -183,7 +171,7 @@ private struct TopOfReefRow: View {
             VStack(spacing: 6) {
                 Text(ranked.friend.initials)
                     .font(.system(size: isFirst ? 18 : 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(ranked.friend.isYou ? Theme.charcoal : Theme.text)
+                    .foregroundStyle(OceanPalette.ink)
                     .frame(width: isFirst ? 62 : 52, height: isFirst ? 62 : 52)
                     .glassEffect(ranked.friend.isYou ? .regular.tint(Theme.yellow) : .regular, in: .circle)
                     .overlay(alignment: .topTrailing) {
@@ -251,7 +239,6 @@ private struct OceanTrack: View {
             }
         }
         .frame(height: oceanHeight)
-        .background { OceanBackdrop() }
         .animation(.spring(response: 1.0, dampingFraction: 0.78), value: model.category)
     }
 
