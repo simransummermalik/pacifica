@@ -1,14 +1,29 @@
 import SwiftUI
 
 struct HomeView: View {
+    let userID: UUID
+    @StateObject private var wallet = WalletViewModel()
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Cash balance")
                         .font(.headline)
-                    Text("$0.00")
-                        .font(.system(size: 56, weight: .bold, design: .rounded))
+
+                    if wallet.isLoading {
+                        ProgressView()
+                            .frame(height: 67)
+                    } else {
+                        Text(wallet.formattedBalance)
+                            .font(.system(size: 56, weight: .bold, design: .rounded))
+                    }
+
+                    if let errorMessage = wallet.errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
                 }
 
                 HStack(spacing: 12) {
@@ -23,9 +38,12 @@ struct HomeView: View {
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .task(id: userID) {
+            await wallet.load(userID: userID)
+        }
     }
 }
 
 #Preview {
-    HomeView()
+    HomeView(userID: UUID())
 }
