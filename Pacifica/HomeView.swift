@@ -41,7 +41,7 @@ private struct TopBar: View {
             Spacer()
             Image(systemName: "person.fill")
                 .font(.title3)
-                .foregroundStyle(Theme.background)
+                .foregroundStyle(Theme.surface)
                 .frame(width: 52, height: 52)
                 .glassEffect(.regular.tint(Theme.text).interactive(), in: .circle)
         }
