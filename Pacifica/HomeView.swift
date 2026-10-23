@@ -7,6 +7,8 @@ struct HomeView: View {
     @State private var hideBalance = false
     @State private var showQR = false
     @State private var showProfile = false
+    @State private var showCash = false
+    @State private var showSavings = false
     @State private var moneySheet: MoneySheetView.Mode?
     @State private var oceanConditions = OceanConditionsViewModel()
 
@@ -19,8 +21,8 @@ struct HomeView: View {
                     VStack(spacing: 16) {
                         TopBar(onQRTap: { showQR = true }, onProfileTap: { showProfile = true })
                         OceanConditionsCard(viewModel: oceanConditions)
-                        BalanceCard(hideBalance: $hideBalance, wallet: wallet, onMoneyAction: { moneySheet = $0 })
-                        SavingsCard()
+                        BalanceCard(hideBalance: $hideBalance, wallet: wallet, onMoneyAction: { moneySheet = $0 }, onOpen: { showCash = true })
+                        SavingsCard(onOpen: { showSavings = true })
                         FishingCard()
                     }
                 }
@@ -36,6 +38,12 @@ struct HomeView: View {
             MoneySheetView(mode: mode, wallet: wallet)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+        .fullScreenCover(isPresented: $showCash) {
+            CashBalanceView(userID: userID, wallet: wallet)
+        }
+        .fullScreenCover(isPresented: $showSavings) {
+            SavingsView()
         }
         .fullScreenCover(isPresented: $showProfile) {
             ProfileView(name: displayName, handle: handle)
@@ -95,16 +103,22 @@ private struct BalanceCard: View {
     @Binding var hideBalance: Bool
     @ObservedObject var wallet: WalletViewModel
     let onMoneyAction: (MoneySheetView.Mode) -> Void
+    let onOpen: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             HStack {
-                HStack(spacing: 8) {
-                    Text("Cash balance")
-                        .font(.title3.weight(.semibold))
-                    Image(systemName: "chevron.right")
-                        .font(.subheadline.weight(.semibold))
+                Button(action: onOpen) {
+                    HStack(spacing: 8) {
+                        Text("Cash balance")
+                            .font(.title3.weight(.semibold))
+                        Image(systemName: "chevron.right")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .foregroundStyle(Theme.text)
+                    .contentShape(.rect)
                 }
+                .buttonStyle(.plain)
                 Spacer()
                 Button {
                     hideBalance.toggle()
@@ -157,7 +171,18 @@ private struct BalanceCard: View {
 // MARK: - Cards
 
 private struct SavingsCard: View {
+    let onOpen: () -> Void
+
     var body: some View {
+        Button(action: onOpen) {
+            content
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Theme.text)
+        .accessibilityHint("Shows savings details")
+    }
+
+    private var content: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Savings")
@@ -176,7 +201,8 @@ private struct SavingsCard: View {
                 .glassEffect(.regular, in: .circle)
         }
         .padding(24)
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardRadius))
+        .contentShape(.rect(cornerRadius: Theme.cardRadius))
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: Theme.cardRadius))
     }
 }
 
