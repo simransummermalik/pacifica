@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TransactionsView: View {
     @StateObject private var viewModel: TransactionsViewModel
+    @Environment(\.dismiss) private var dismiss
 
     init(userID: UUID) {
         _viewModel = StateObject(wrappedValue: TransactionsViewModel(currentUserID: userID))
@@ -71,6 +72,11 @@ struct TransactionsView: View {
             }
             .background(AppBackground())
             .navigationTitle("Transactions")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
             .overlay(alignment: .bottom) {
                 if let errorMessage = viewModel.errorMessage {
                     Text(errorMessage)

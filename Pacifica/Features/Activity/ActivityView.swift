@@ -3,7 +3,9 @@ import SwiftUI
 /// The Activity tab: a tall ocean you scroll down. Each friend swims in their own lane, and the deeper their
 /// fish, the more of their own budget they've used. Shallowest is first. Only percentages are shown.
 struct ActivityView: View {
+    let userID: UUID
     @State private var model = ReefViewModel()
+    @State private var showTransactions = false
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -24,7 +26,7 @@ struct ActivityView: View {
 
                 ScrollView {
                     VStack(spacing: 0) {
-                        TopOfReefRow(model: model) { id in focus(on: id, using: proxy) }
+                        TopOfReefRow(model: model, onOpenTransactions: { showTransactions = true }) { id in focus(on: id, using: proxy) }
                             .padding(.top, 6)
                             .padding(.bottom, 26)
                             .frame(maxWidth: .infinity)
@@ -48,6 +50,9 @@ struct ActivityView: View {
                     .padding(.bottom, 18)
             }
             .background { OceanBackdrop().ignoresSafeArea() }
+            .sheet(isPresented: $showTransactions) {
+                TransactionsView(userID: userID)
+            }
             .task {
                 // Dive in: after the sky and podium show, swim down to your fish.
                 try? await Task.sleep(for: .seconds(1.2))
@@ -147,6 +152,7 @@ private struct CategoryChips: View {
 /// Ranking, shallowest first. Tap someone to swim down to their fish.
 private struct TopOfReefRow: View {
     var model: ReefViewModel
+    let onOpenTransactions: () -> Void
     let onSelect: (String) -> Void
 
     var body: some View {
@@ -169,6 +175,16 @@ private struct TopOfReefRow: View {
                 .padding(.top, 8)
             }
             .scrollIndicators(.hidden)
+
+            Button(action: onOpenTransactions) {
+                Label("Transactions", systemImage: "list.bullet.rectangle")
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .glassEffect(.regular.interactive(), in: .capsule)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 20)
         }
         .foregroundStyle(OceanPalette.ink)
     }
