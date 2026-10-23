@@ -17,10 +17,24 @@ struct PayView: View {
         .padding(.bottom, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .foregroundStyle(Theme.text)
-        .background(AppBackground())
+        .background {
+            ZStack {
+                AppBackground()
+                TideBackground(level: tideLevel)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.85), value: tideLevel)
+            }
+        }
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .sensoryFeedback(.selection, trigger: viewModel.validInputCount)
         .sensoryFeedback(.warning, trigger: viewModel.invalidInputCount)
+    }
+
+    /// 0...1 water level for the current amount. Log scale so $5 and $5,000 both show clearly.
+    private var tideLevel: CGFloat {
+        let amount = Double(truncating: viewModel.amount as NSDecimalNumber)
+        guard amount > 0 else { return 0 }
+        let maxAmount = Double(truncating: PayViewModel.maxAmount as NSDecimalNumber)
+        return CGFloat(min(1, log10(amount + 1) / log10(maxAmount + 1))) * 0.8
     }
 
     private var topBar: some View {

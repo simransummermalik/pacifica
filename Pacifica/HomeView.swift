@@ -41,7 +41,7 @@ private struct TopBar: View {
             }
             .foregroundStyle(Theme.text)
             Spacer()
-            Image(systemName: "person.fill")
+            Image(systemName: "fish.fill")
                 .font(.title3)
                 .foregroundStyle(Theme.surface)
                 .frame(width: 52, height: 52)
@@ -80,7 +80,7 @@ private struct BalanceCard: View {
                 Button {
                     hideBalance.toggle()
                 } label: {
-                    Image(systemName: hideBalance ? "fish" : "fish.fill")
+                    Image(systemName: hideBalance ? "eye" : "eye.slash")
                         .font(.title3)
                         .foregroundStyle(Theme.text)
                 }
