@@ -13,16 +13,6 @@ struct ActivityView: View {
             // space between them and "centered" really means the middle of what you can see.
             VStack(spacing: 0) {
                 PinnedHeader(model: model) { id in focus(on: id, using: proxy) }
-                    .background {
-                        LinearGradient(colors: [OceanPalette.skyTop, OceanPalette.skyMid],
-                                       startPoint: .top, endPoint: .bottom)
-                            .ignoresSafeArea(edges: .top)
-                    }
-                    .background {
-                        LinearGradient(colors: [OceanPalette.skyTop, OceanPalette.skyMid],
-                                       startPoint: .top, endPoint: .bottom)
-                            .ignoresSafeArea(edges: .top)
-                    }
 
                 ScrollView {
                     VStack(spacing: 0) {
@@ -30,19 +20,19 @@ struct ActivityView: View {
                             .padding(.top, 6)
                             .padding(.bottom, 26)
                             .frame(maxWidth: .infinity)
-                            .background {
-                                LinearGradient(colors: [OceanPalette.skyMid, OceanPalette.skyMid.opacity(0)],
-                                               startPoint: .top, endPoint: .bottom)
-                            }
-                            .background {
-                                LinearGradient(colors: [OceanPalette.skyMid, OceanPalette.skyMid.opacity(0)],
-                                               startPoint: .top, endPoint: .bottom)
-                            }
 
                         OceanTrack(model: model) { id in focus(on: id, using: proxy) }
                     }
                 }
                 .scrollIndicators(.hidden)
+                .overlay(alignment: .top) {
+                    // Soft edge under the categories: the ocean blurs out as it scrolls up behind the header.
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                        .mask(LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom))
+                        .frame(height: 32)
+                        .allowsHitTesting(false)
+                }
 
                 YourFishCard(model: model)
                     .padding(.horizontal, 16)
