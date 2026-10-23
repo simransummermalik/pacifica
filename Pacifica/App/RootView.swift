@@ -3,6 +3,7 @@ import SwiftUI
 enum RootTab: CaseIterable, Hashable {
     case bank
     case activity
+    case transactions
     case pay
 
     var systemImage: String {
@@ -10,6 +11,7 @@ enum RootTab: CaseIterable, Hashable {
         case .bank: "building.columns"
         case .pay: "dollarsign"
         case .activity: "clock"
+        case .transactions: "list.bullet.rectangle"
         }
     }
 
@@ -18,6 +20,7 @@ enum RootTab: CaseIterable, Hashable {
         case .bank: "Bank"
         case .pay: "Pay"
         case .activity: "Activity"
+        case .transactions: "Transactions"
         }
     }
 }
@@ -34,6 +37,9 @@ struct RootView: View {
             }
             Tab(RootTab.activity.title, systemImage: RootTab.activity.systemImage, value: .activity) {
                 ActivityView()
+            }
+            Tab(RootTab.transactions.title, systemImage: RootTab.transactions.systemImage, value: .transactions) {
+                TransactionsView(userID: userID)
             }
             Tab(RootTab.pay.title, systemImage: RootTab.pay.systemImage, value: .pay) {
                 PayView()
