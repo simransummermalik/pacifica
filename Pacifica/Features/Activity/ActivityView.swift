@@ -425,5 +425,5 @@ private struct DepthBar: View {
 }
 
 #Preview {
-    ActivityView()
+    ActivityView(userID: UUID())
 }
