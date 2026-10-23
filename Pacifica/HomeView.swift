@@ -3,16 +3,20 @@ import SwiftUI
 
 struct HomeView: View {
     let userID: UUID
+    let askPacifica: AskPacificaViewModel
 
     @State private var hideBalance = false
+    @State private var showsAskPacifica = false
+    @State private var askDraft = ""
     @State private var showQR = false
     @State private var balanceAction: BalanceAction?
     @State private var oceanConditions = OceanConditionsViewModel()
     @StateObject private var wallet: HomeWalletViewModel
     @StateObject private var dailySelfie: DailySelfieViewModel
 
-    init(userID: UUID) {
+    init(userID: UUID, askPacifica: AskPacificaViewModel) {
         self.userID = userID
+        self.askPacifica = askPacifica
         _wallet = StateObject(wrappedValue: HomeWalletViewModel(userID: userID))
         _dailySelfie = StateObject(wrappedValue: DailySelfieViewModel(userID: userID))
     }
@@ -24,7 +28,11 @@ struct HomeView: View {
             ScrollView {
                 GlassEffectContainer(spacing: 16) {
                     VStack(spacing: 16) {
-                        TopBar(onQRTap: { showQR = true })
+                        TopBar(
+                            onQRTap: { showQR = true },
+                            askDraft: $askDraft,
+                            onAsk: ask
+                        )
                         DailySelfieView(viewModel: dailySelfie)
                         OceanConditionsCard(viewModel: oceanConditions)
                         BalanceCard(
@@ -49,6 +57,11 @@ struct HomeView: View {
         .task(id: userID) {
             await wallet.load()
         }
+        .sheet(isPresented: $showsAskPacifica) {
+            AskPacificaView(viewModel: askPacifica, priceContext: oceanConditions.priceContext)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
         .sheet(item: $balanceAction) { action in
             BalanceAdjustmentView(action: action) { amount in
                 await wallet.adjust(delta: action.delta(for: amount))
@@ -57,10 +70,29 @@ struct HomeView: View {
     }
 }
 
+extension HomeView {
+    /// Opens Ask Pacifica. With a question typed, sends it right away and clears the pill;
+    /// with an empty pill, just opens the chat (suggestion chips if there's no conversation yet).
+    fileprivate func ask() {
+        let question = askDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        askDraft = ""
+        showsAskPacifica = true
+        guard !question.isEmpty else { return }
+        if askPacifica.isWaiting {
+            // A reply is still on its way; leave the question in the chat's field instead of dropping it.
+            askPacifica.draft = question
+        } else {
+            Task { await askPacifica.send(question, priceContext: oceanConditions.priceContext) }
+        }
+    }
+}
+
 // MARK: - Top bar
 
 private struct TopBar: View {
     let onQRTap: () -> Void
+    @Binding var askDraft: String
+    let onAsk: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -68,7 +100,7 @@ private struct TopBar: View {
                 CircleButton(systemImage: "qrcode")
             }
             .foregroundStyle(Theme.text)
-            Spacer()
+            AskPacificaPill(draft: $askDraft, onAsk: onAsk)
             Image(systemName: "person.fill")
                 .font(.title3)
                 .foregroundStyle(Theme.surface)
@@ -76,6 +108,62 @@ private struct TopBar: View {
                 .glassEffect(.regular.tint(Theme.text).interactive(), in: .circle)
         }
         .padding(.top, 8)
+    }
+}
+
+/// Search-style field that opens Ask Pacifica; same height and glass as the round top-bar buttons.
+private struct AskPacificaPill: View {
+    @Binding var draft: String
+    let onAsk: () -> Void
+
+    @FocusState private var isFocused: Bool
+
+    private var hasText: Bool {
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button(action: submit) {
+                Image(systemName: "sparkles")
+                    .font(.title3.weight(.semibold))
+                    .frame(width: 32, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open Ask Pacifica")
+
+            TextField("Ask Pacifica…", text: $draft)
+                .font(.body)
+                .submitLabel(.send)
+                .focused($isFocused)
+                .onSubmit(submit)
+                .accessibilityLabel("Ask Pacifica, your money assistant")
+
+            if hasText {
+                Button(action: submit) {
+                    Image(systemName: "arrow.up")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.surface)
+                        .frame(width: 32, height: 32)
+                        .background(Theme.text, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Send question")
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .foregroundStyle(Theme.text)
+        .padding(.leading, 12)
+        .padding(.trailing, 10)
+        .frame(maxWidth: .infinity, minHeight: 52)
+        .glassEffect(.regular.interactive(), in: .capsule)
+        .animation(.easeOut(duration: 0.15), value: hasText)
+    }
+
+    private func submit() {
+        isFocused = false
+        onAsk()
     }
 }
 
@@ -257,5 +345,5 @@ private struct SavingsCard: View {
 }
 
 #Preview {
-    HomeView(userID: UUID())
+    HomeView(userID: UUID(), askPacifica: AskPacificaViewModel())
 }

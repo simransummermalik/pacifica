@@ -27,18 +27,21 @@ struct RootView: View {
     let userID: UUID
 
     @State private var selection: RootTab = .bank
+    /// Owned here so the conversation survives tab switches; reset when a different user signs in.
+    @State private var askPacifica = AskPacificaViewModel()
     @Namespace private var tabPill
 
     var body: some View {
         Group {
             switch selection {
-            case .bank: HomeView(userID: userID)
+            case .bank: HomeView(userID: userID, askPacifica: askPacifica)
             case .pay: PayView()
             case .activity: ActivityPlaceholderView()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaInset(edge: .bottom, spacing: 0) { tabBar }
+        .onChange(of: userID) { askPacifica = AskPacificaViewModel() }
     }
 
     // The Pacifica theme applies only on the Pay tab; other tabs keep system styling.
