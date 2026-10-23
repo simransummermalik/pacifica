@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @State private var hideBalance = false
     @State private var showQR = false
+    @State private var showProfile = false
     @State private var oceanConditions = OceanConditionsViewModel()
 
     var body: some View {
@@ -12,7 +13,7 @@ struct HomeView: View {
             ScrollView {
                 GlassEffectContainer(spacing: 16) {
                     VStack(spacing: 16) {
-                        TopBar(onQRTap: { showQR = true })
+                        TopBar(onQRTap: { showQR = true }, onProfileTap: { showProfile = true })
                         OceanConditionsCard(viewModel: oceanConditions)
                         BalanceCard(hideBalance: $hideBalance)
                         SavingsCard()
@@ -27,6 +28,9 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $showQR) {
             QRCodeView()
         }
+        .fullScreenCover(isPresented: $showProfile) {
+            ProfileView()
+        }
     }
 }
 
@@ -34,6 +38,7 @@ struct HomeView: View {
 
 private struct TopBar: View {
     let onQRTap: () -> Void
+    let onProfileTap: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -42,11 +47,14 @@ private struct TopBar: View {
             }
             .foregroundStyle(Theme.text)
             Spacer()
-            Image(systemName: "fish.fill")
-                .font(.title3)
-                .foregroundStyle(Theme.surface)
-                .frame(width: 52, height: 52)
-                .glassEffect(.regular.tint(Theme.text).interactive(), in: .circle)
+            Button(action: onProfileTap) {
+                Image(systemName: "fish.fill")
+                    .font(.title3)
+                    .foregroundStyle(Theme.surface)
+                    .frame(width: 52, height: 52)
+                    .glassEffect(.regular.tint(Theme.text).interactive(), in: .circle)
+            }
+            .accessibilityLabel("Profile")
         }
         .padding(.top, 8)
     }
