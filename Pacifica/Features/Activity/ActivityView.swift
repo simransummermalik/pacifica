@@ -42,11 +42,13 @@ struct ActivityView: View {
                 }
                 .scrollIndicators(.hidden)
                 .ignoresSafeArea(edges: .top)
-
-                YourFishCard(model: model)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 10)
-                    .padding(.bottom, 18)
+                // The card floats over the ocean: fish and labels scroll underneath it and blur through the glass.
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    YourFishCard(model: model)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 10)
+                        .padding(.bottom, 18)
+                }
             }
             .background { OceanBackdrop().ignoresSafeArea() }
             .sheet(isPresented: $showTransactions) {
