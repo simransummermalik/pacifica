@@ -23,14 +23,14 @@ struct ActivityView: View {
                     .frame(height: 360)
                     .ignoresSafeArea(edges: .top)
             }
-            .background(Color(hex: 0x082A33))
+            .background(Color(hex: 0x0A2E66))
             .safeAreaInset(edge: .top, spacing: 0) {
                 PinnedHeader(model: model) { id in focus(on: id, using: proxy) }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 YourFishCard(model: model)
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 4)
+                    .padding(.bottom, 18)
             }
             .task {
                 // Dive in: after the sky and podium show, swim down to your fish.
@@ -56,8 +56,8 @@ private struct SkyGradient: View {
     var body: some View {
         LinearGradient(
             colors: [
-                Color(light: .white, dark: Color(hex: 0x10201F)),
-                Color(light: Color(hex: 0xD9F3F0), dark: Color(hex: 0x0B3A3D)),
+                Color(light: .white, dark: Color(hex: 0x0B1E33)),
+                Color(light: Color(hex: 0xDDF1FF), dark: Color(hex: 0x0A2A4A)),
             ],
             startPoint: .top,
             endPoint: .bottom
@@ -206,8 +206,8 @@ private struct TopOfReefRow: View {
 
 // MARK: - Ocean track
 
-/// The tall ocean. One lane per friend; a fishing line runs from the surface down to the fish, so the line's
-/// length is the depth, the way a Stompers track fills with steps.
+/// The tall ocean. Depth sets how far down a fish is; sideways it takes a spot that changes with the ranking,
+/// so fish aren't tied to one lane. A thin fishing line runs from the surface down to each fish.
 private struct OceanTrack: View {
     var model: ReefViewModel
     let onSelect: (String) -> Void
@@ -216,77 +216,108 @@ private struct OceanTrack: View {
     private let surfaceMargin: CGFloat = 54
     private let rulerWidth: CGFloat = 50
     private let trenchHeight: CGFloat = 260
+    /// Fish in the same spot never get closer than this vertically.
+    private let minGap: CGFloat = 96
+    /// Horizontal spots across the swimming area, used in turn from the surface down.
+    private let spots: [CGFloat] = [0.17, 0.50, 0.83]
 
-    /// Height of the part of the ocean that maps depth 0...maxDepth.
     private var trackHeight: CGFloat { oceanHeight - surfaceMargin - trenchHeight }
 
     private func yTop(for depth: Double) -> CGFloat {
         surfaceMargin + CGFloat(min(max(depth, 0), ReefViewModel.maxDepth) / ReefViewModel.maxDepth) * trackHeight
     }
 
+    private struct Placement {
+        let centerX: CGFloat
+        let top: CGFloat
+        let depth: Double
+        let facesRight: Bool
+    }
+
     private let phases: [String: Double] = ["you": 0.0, "summer": 1.4, "raey": 2.6, "mario": 3.9, "alex": 5.1]
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            DepthRuler(top: surfaceMargin, trackHeight: trackHeight, totalHeight: oceanHeight)
+        GeometryReader { geo in
+            let placements = layout(width: geo.size.width)
 
-            HStack(alignment: .top, spacing: 0) {
-                Color.clear.frame(width: rulerWidth)
-                ForEach(Array(model.friends.enumerated()), id: \.element.id) { index, friend in
-                    lane(for: friend, index: index)
+            ZStack(alignment: .topLeading) {
+                DepthRuler(top: surfaceMargin, trackHeight: trackHeight, totalHeight: oceanHeight)
+
+                ForEach(model.friends) { friend in
+                    if let place = placements[friend.id] {
+                        line(for: friend, place: place)
+                        fish(for: friend, place: place)
+                    }
                 }
             }
         }
         .frame(height: oceanHeight)
-        .background {
-            OceanBackdrop()
-        }
+        .background { OceanBackdrop() }
         .animation(.spring(response: 1.0, dampingFraction: 0.78), value: model.category)
     }
 
-    private func lane(for friend: ReefFriend, index: Int) -> some View {
-        // Hidden fish hang at mid-depth so their real depth never leaks.
-        let depth = friend.depth(in: model.category)
-        let isHidden = depth == nil
-        let shown = depth ?? 0.55
-        let detail = isHidden ? "hidden" : "\(Int((shown * 100).rounded()))%"
+    /// Hidden fish hang at mid-depth so their real depth never leaks.
+    private func layout(width: CGFloat) -> [String: Placement] {
+        let swimWidth = width - rulerWidth
+        let ordered: [(friend: ReefFriend, depth: Double)] = model.friends
+            .map { ($0, $0.depth(in: model.category) ?? 0.55) }
+            .sorted { $0.depth < $1.depth }
 
-        return VStack(spacing: 0) {
-            // Fishing line from the surface to the fish.
-            ZStack(alignment: .top) {
-                Capsule()
-                    .fill(LinearGradient(colors: [.white.opacity(0.7), .white.opacity(0.25)],
-                                         startPoint: .top, endPoint: .bottom))
-                    .frame(width: 1.5)
-                Circle()
-                    .fill(friend.isYou ? Theme.coral : Color.white)
-                    .frame(width: 9, height: 9)
-                    .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
+        var lastTop: [Int: CGFloat] = [:]
+        var result: [String: Placement] = [:]
+
+        for (index, entry) in ordered.enumerated() {
+            let spot = index % spots.count
+            var top = yTop(for: entry.depth)
+            if let previous = lastTop[spot], top - previous < minGap {
+                top = previous + minGap
             }
-            .frame(height: yTop(for: shown))
-
-            Button {
-                onSelect(friend.id)
-            } label: {
-                FishView(name: friend.name, detail: detail,
-                         isYou: friend.isYou, isHidden: isHidden,
-                         facesRight: index % 2 == 0,
-                         isSelected: model.selectedID == friend.id,
-                         depth: shown, phase: phases[friend.id] ?? 0)
-            }
-            .buttonStyle(.plain)
-            .id("fish-\(friend.id)")
-
-            Spacer(minLength: 0)
+            lastTop[spot] = top
+            result[entry.friend.id] = Placement(
+                centerX: rulerWidth + swimWidth * spots[spot],
+                top: top,
+                depth: entry.depth,
+                facesRight: spot != 2
+            )
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: oceanHeight)
-        .background {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(.white.opacity(friend.isYou ? 0.10 : 0.04))
-                .padding(.horizontal, 3)
-                .padding(.top, 20)
+        return result
+    }
+
+    private func line(for friend: ReefFriend, place: Placement) -> some View {
+        ZStack(alignment: .top) {
+            Capsule()
+                .fill(LinearGradient(colors: [.white.opacity(0.65), .white.opacity(0.2)],
+                                     startPoint: .top, endPoint: .bottom))
+                .frame(width: 1.5)
+            Circle()
+                .fill(friend.isYou ? Theme.coral : Color.white)
+                .frame(width: 9, height: 9)
         }
+        .frame(width: 9, height: place.top)
+        .padding(.leading, place.centerX - 4.5)
+        .allowsHitTesting(false)
+    }
+
+    private func fish(for friend: ReefFriend, place: Placement) -> some View {
+        let isHidden = friend.depth(in: model.category) == nil
+        let detail = isHidden ? "hidden" : "\(Int((place.depth * 100).rounded()))%"
+        let nodeWidth: CGFloat = friend.isYou ? 110 : 92
+
+        return Button {
+            onSelect(friend.id)
+        } label: {
+            FishView(name: friend.name, detail: detail,
+                     isYou: friend.isYou, isHidden: isHidden,
+                     facesRight: place.facesRight,
+                     isSelected: model.selectedID == friend.id,
+                     depth: place.depth, phase: phases[friend.id] ?? 0)
+                .frame(width: nodeWidth)
+        }
+        .buttonStyle(.plain)
+        .id("fish-\(friend.id)")
+        .padding(.leading, place.centerX - nodeWidth / 2)
+        .padding(.top, place.top)
+        .zIndex(friend.isYou ? 1 : 0)
     }
 }
 
@@ -391,7 +422,7 @@ private struct DepthBar: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(.white.opacity(0.18))
                 Capsule()
-                    .fill(LinearGradient(colors: [Color(hex: 0x4CC9BF), Theme.coral],
+                    .fill(LinearGradient(colors: [Color(hex: 0x6AD0F5), Theme.coral],
                                          startPoint: .leading, endPoint: .trailing))
                     .frame(width: max(geo.size.width * fraction, 10))
             }
