@@ -13,10 +13,10 @@ struct OceanConditionsCard: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(viewModel.cardText ?? OceanConditionsViewModel.fallbackText)
-                        .font(.title3.weight(.semibold))
+                        .font(.headline)
                         .fixedSize(horizontal: false, vertical: true)
                     Text(OceanConditionsViewModel.source)
-                        .font(.subheadline)
+                        .font(.footnote)
                         .foregroundStyle(Theme.textSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -192,7 +192,8 @@ extension PriceReport {
 
 /// Stores the last report in UserDefaults; BLS v1 allows only 25 requests a day.
 struct OceanConditionsCache {
-    private static let reportKey = "oceanConditions.report"
+    // v2: reports cached before October 2025's missing value was handled include it as 0.
+    private static let reportKey = "oceanConditions.report.v2"
     private static let dateKey = "oceanConditions.reportDate"
 
     let defaults: UserDefaults
