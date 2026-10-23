@@ -6,7 +6,7 @@ packages:
 options:
   bundleIdPrefix: com.pacifica
   deploymentTarget:
-    iOS: "27.0"
+    iOS: "26.0"
 settings:
   base:
     SWIFT_VERSION: "6.0"
