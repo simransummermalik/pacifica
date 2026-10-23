@@ -46,6 +46,11 @@ enum PriceCategory: String, CaseIterable, Codable, Sendable, Identifiable {
     var id: String { rawValue }
     var seriesID: String { rawValue }
 
+    /// The series' data page on the BLS website.
+    var sourceURL: URL {
+        URL(string: "https://data.bls.gov/timeseries/\(seriesID)")!
+    }
+
     var name: String {
         switch self {
         case .groceries: "Groceries"

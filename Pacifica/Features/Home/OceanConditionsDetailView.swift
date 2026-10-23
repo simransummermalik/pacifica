@@ -98,7 +98,7 @@ struct OceanConditionsDetailView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 8)
 
-            source
+            source(for: current.category)
         }
     }
 
@@ -117,10 +117,20 @@ struct OceanConditionsDetailView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var source: some View {
-        Text(OceanConditionsViewModel.source)
+    /// Opens the selected category's series on the BLS website.
+    private func source(for category: PriceCategory) -> some View {
+        Link(destination: category.sourceURL) {
+            HStack(spacing: 4) {
+                Text(OceanConditionsViewModel.source)
+                    .underline()
+                Image(systemName: "arrow.up.right")
+                    .font(.footnote.weight(.semibold))
+            }
             .font(.subheadline)
             .foregroundStyle(Theme.textSecondary)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
     }
 }
 
