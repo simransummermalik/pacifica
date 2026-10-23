@@ -58,8 +58,8 @@ struct AuthView: View {
         VStack(spacing: 8) {
             Text("Pacifica")
                 .font(.title2.weight(.bold))
-            Text("When your money is on the deep end, bring your competitive side and we'll get you hooked.")
-                .font(.headline)
+            Text("Dive in. Compete. Get hooked.")
+                .font(.subheadline)
                 .foregroundStyle(Theme.textSecondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
