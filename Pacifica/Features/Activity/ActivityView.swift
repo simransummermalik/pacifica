@@ -11,6 +11,16 @@ struct ActivityView: View {
             // space between them and "centered" really means the middle of what you can see.
             VStack(spacing: 0) {
                 PinnedHeader(model: model) { id in focus(on: id, using: proxy) }
+                    .background {
+                        LinearGradient(colors: [OceanPalette.skyTop, OceanPalette.skyMid],
+                                       startPoint: .top, endPoint: .bottom)
+                            .ignoresSafeArea(edges: .top)
+                    }
+                    .background {
+                        LinearGradient(colors: [OceanPalette.skyTop, OceanPalette.skyMid],
+                                       startPoint: .top, endPoint: .bottom)
+                            .ignoresSafeArea(edges: .top)
+                    }
 
                 ScrollView {
                     VStack(spacing: 0) {
@@ -18,6 +28,14 @@ struct ActivityView: View {
                             .padding(.top, 6)
                             .padding(.bottom, 26)
                             .frame(maxWidth: .infinity)
+                            .background {
+                                LinearGradient(colors: [OceanPalette.skyMid, OceanPalette.skyMid.opacity(0)],
+                                               startPoint: .top, endPoint: .bottom)
+                            }
+                            .background {
+                                LinearGradient(colors: [OceanPalette.skyMid, OceanPalette.skyMid.opacity(0)],
+                                               startPoint: .top, endPoint: .bottom)
+                            }
 
                         OceanTrack(model: model) { id in focus(on: id, using: proxy) }
                     }
