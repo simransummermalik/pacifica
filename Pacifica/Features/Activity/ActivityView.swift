@@ -11,19 +11,22 @@ struct ActivityView: View {
                 VStack(spacing: 0) {
                     TopOfReefRow(model: model) { id in focus(on: id, using: proxy) }
                         .padding(.top, 6)
-                        .padding(.bottom, 22)
+                        .padding(.bottom, 26)
+                        .frame(maxWidth: .infinity)
+                        .background { SkyGradient() }
 
                     OceanTrack(model: model) { id in focus(on: id, using: proxy) }
                 }
             }
             .scrollIndicators(.hidden)
-            .background(alignment: .top) {
-                // Sky behind the top of the content; scrolls away with it.
-                SkyGradient()
-                    .frame(height: 360)
-                    .ignoresSafeArea(edges: .top)
+            .background {
+                // Behind everything: sky color above the content, deep water below it, so bounces never flash white.
+                VStack(spacing: 0) {
+                    OceanPalette.skyTop
+                    OceanPalette.deep
+                }
+                .ignoresSafeArea()
             }
-            .background(Color(hex: 0x0A2E66))
             .safeAreaInset(edge: .top, spacing: 0) {
                 PinnedHeader(model: model) { id in focus(on: id, using: proxy) }
             }
@@ -52,13 +55,11 @@ struct ActivityView: View {
 
 // MARK: - Sky and pinned header
 
+/// Sky behind the podium. It fades from the page's sky color into the exact blue of the water's surface.
 private struct SkyGradient: View {
     var body: some View {
         LinearGradient(
-            colors: [
-                Color(light: .white, dark: Color(hex: 0x0B1E33)),
-                Color(light: Color(hex: 0xDDF1FF), dark: Color(hex: 0x0A2A4A)),
-            ],
+            colors: [OceanPalette.skyTop, Color(light: Color(hex: 0xBFE8FB), dark: Color(hex: 0x0A2A4A)), OceanPalette.surface],
             startPoint: .top,
             endPoint: .bottom
         )
@@ -313,12 +314,7 @@ private struct DepthRuler: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            // The trench: darker water below 100% of budget.
             let floorY = top + CGFloat(1.0 / ReefViewModel.maxDepth) * trackHeight
-            LinearGradient(colors: [.clear, Color.black.opacity(0.4)], startPoint: .top, endPoint: .bottom)
-                .frame(height: totalHeight - floorY)
-                .offset(y: floorY)
-                .allowsHitTesting(false)
 
             ForEach(0...10, id: \.self) { step in
                 let value = Double(step) / 10
@@ -336,17 +332,18 @@ private struct DepthRuler: View {
             }
 
             Text("SEA FLOOR")
-                .font(.system(size: 9, weight: .heavy, design: .rounded))
-                .tracking(1.5)
-                .foregroundStyle(.white.opacity(0.55))
-                .position(x: 25, y: floorY + 22)
+                .font(.system(size: 12, weight: .heavy, design: .rounded))
+                .tracking(3)
+                .foregroundStyle(.white.opacity(0.85))
+                .frame(maxWidth: .infinity)
+                .offset(y: floorY + 24)
 
             Text("THE TRENCH")
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .font(.system(size: 12, weight: .heavy, design: .rounded))
                 .tracking(3)
-                .foregroundStyle(.white.opacity(0.35))
+                .foregroundStyle(.white.opacity(0.55))
                 .frame(maxWidth: .infinity)
-                .offset(y: floorY + 90)
+                .offset(y: floorY + 110)
         }
         .accessibilityHidden(true)
     }
