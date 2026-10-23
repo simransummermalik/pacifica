@@ -67,18 +67,7 @@ struct TransactionsView: View {
                     }
                 }
             }
-            .background {
-                ZStack(alignment: .top) {
-                    AppBackground()
-                    LinearGradient(
-                        colors: [Theme.teal.opacity(0.28), Theme.teal.opacity(0)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: 320)
-                    .ignoresSafeArea()
-                }
-            }
+            .background(AppBackground())
             .navigationTitle("Transactions")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -99,6 +88,13 @@ struct TransactionsView: View {
                 await viewModel.load()
             }
         }
+    }
+}
+
+private extension View {
+    /// Apple-style grouped card: flat fill on the page surface, no gradient.
+    func card(tint: Color? = nil) -> some View {
+        background((tint ?? Theme.text).opacity(tint == nil ? 0.05 : 0.12), in: .rect(cornerRadius: 24))
     }
 }
 
@@ -125,10 +121,7 @@ private struct Avatar: View {
             .font(.system(size: size * 0.36, weight: .bold, design: .rounded))
             .foregroundStyle(.white)
             .frame(width: size, height: size)
-            .background(
-                LinearGradient(colors: [Theme.teal, Color(hex: 0x2DD4BF)], startPoint: .topLeading, endPoint: .bottomTrailing),
-                in: Circle()
-            )
+            .background(Theme.teal, in: Circle())
     }
 }
 
@@ -182,15 +175,7 @@ private struct GoalBreakBanner: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(
-                colors: [Theme.highlight.opacity(0.22), Theme.highlight.opacity(0.05)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            in: .rect(cornerRadius: Theme.cardRadius)
-        )
-        .glassEffect(.regular.tint(Theme.highlight.opacity(0.15)), in: .rect(cornerRadius: Theme.cardRadius))
+        .card(tint: Theme.highlight)
     }
 }
 
@@ -206,10 +191,9 @@ private struct CircleScoreCard: View {
                 Spacer()
                 Text("Level \(stats.level)")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Theme.teal, in: Capsule())
+                    .glassEffect(.regular.tint(Theme.teal), in: .capsule)
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -224,9 +208,9 @@ private struct CircleScoreCard: View {
             VStack(alignment: .leading, spacing: 6) {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        Capsule().fill(Theme.subtleFill)
+                        Capsule().fill(Theme.text.opacity(0.1))
                         Capsule()
-                            .fill(LinearGradient(colors: [Theme.teal, Color(hex: 0x2DD4BF)], startPoint: .leading, endPoint: .trailing))
+                            .fill(Theme.teal)
                             .frame(width: max(10, geo.size.width * stats.progress))
                     }
                 }
@@ -254,15 +238,7 @@ private struct CircleScoreCard: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(
-                colors: [Theme.teal.opacity(0.18), Theme.teal.opacity(0.03)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            in: .rect(cornerRadius: Theme.cardRadius)
-        )
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardRadius))
+        .card()
     }
 }
 
@@ -370,14 +346,14 @@ private struct ActivityPostCard: View {
                 }
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Theme.subtleFill, in: .rect(cornerRadius: 16))
+                .background(Theme.text.opacity(0.06), in: .rect(cornerRadius: 14))
             }
 
             HStack(spacing: 8) {
                 TextField("Add a comment", text: $commentText)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(Theme.subtleFill, in: Capsule())
+                    .background(Theme.text.opacity(0.06), in: Capsule())
                     .onSubmit { submitComment() }
 
                 Button {
@@ -385,9 +361,8 @@ private struct ActivityPostCard: View {
                 } label: {
                     Image(systemName: "arrow.up")
                         .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.white)
                         .frame(width: 38, height: 38)
-                        .background(canPost ? Theme.teal : Theme.text.opacity(0.2), in: Circle())
+                        .glassEffect(canPost ? .regular.tint(Theme.teal).interactive() : .regular, in: .circle)
                 }
                 .buttonStyle(.plain)
                 .disabled(!canPost)
@@ -396,7 +371,7 @@ private struct ActivityPostCard: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardRadius))
+        .card()
     }
 
     private func submitComment() {
@@ -418,10 +393,10 @@ private struct VoteButton: View {
         Button(action: action) {
             Label("\(title) \(count)", systemImage: systemImage)
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(isSelected ? .white : Theme.textSecondary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(isSelected ? Theme.teal : Theme.subtleFill, in: Capsule())
+                .foregroundStyle(isSelected ? Theme.text : Theme.textSecondary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .glassEffect(isSelected ? .regular.tint(Theme.teal).interactive() : .regular.interactive(), in: .capsule)
         }
         .buttonStyle(.plain)
         .sensoryFeedback(.selection, trigger: isSelected)
