@@ -223,7 +223,7 @@ private struct FishingCard: View {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
-                        Text("Activity")
+                        Text("Reef")
                             .font(.title3.weight(.semibold))
                         Image(systemName: "chevron.right")
                             .font(.subheadline.weight(.semibold))
@@ -244,7 +244,7 @@ private struct FishingCard: View {
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: Theme.cardRadius))
-        .accessibilityHint("Opens Activity")
+        .accessibilityHint("Opens Reef")
     }
 }
 

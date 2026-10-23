@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The Activity tab: a tall ocean you scroll down. Each friend swims in their own lane, and the deeper their
+/// The Reef tab: a tall ocean you scroll down. Each friend swims in their own lane, and the deeper their
 /// fish, the more of their own budget they've used. Shallowest is first. Only percentages are shown.
 struct ActivityView: View {
     let userID: UUID
@@ -24,24 +24,21 @@ struct ActivityView: View {
                                 .padding(.bottom, 40)
                                 .frame(maxWidth: .infinity)
                         }
-                        // Sky: white at the very top, fading into the water. It scrolls away with the header.
-                        .background {
-                            LinearGradient(
-                                stops: [
-                                    .init(color: Color(light: .white, dark: Color(hex: 0x0B2A4A)), location: 0),
-                                    .init(color: Color(light: .white, dark: Color(hex: 0x0B2A4A)).opacity(0.85), location: 0.35),
-                                    .init(color: Color(light: .white, dark: Color(hex: 0x0B2A4A)).opacity(0), location: 1),
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        }
 
+                        // The ocean is its own blue panel on the white page. The extra water at the bottom
+                        // sits behind the "Your fish" card.
                         OceanTrack(model: model) { id in focus(on: id, using: proxy) }
+                            .padding(.bottom, 150)
+                            .background {
+                                UnevenRoundedRectangle(topLeadingRadius: 32, topTrailingRadius: 32)
+                                    .fill(.clear)
+                                    .overlay { OceanBackdrop() }
+                                    .clipShape(UnevenRoundedRectangle(topLeadingRadius: 32, topTrailingRadius: 32))
+                            }
                     }
                 }
                 .scrollIndicators(.hidden)
-                .ignoresSafeArea(edges: .top)
+                .ignoresSafeArea(edges: [.top, .bottom])
                 // The card floats over the ocean: fish and labels scroll underneath it and blur through the glass.
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     YourFishCard(model: model)
@@ -50,7 +47,7 @@ struct ActivityView: View {
                         .padding(.bottom, 18)
                 }
             }
-            .background { OceanBackdrop().ignoresSafeArea() }
+            .background(AppBackground())
             .sheet(isPresented: $showTransactions) {
                 TransactionsView(userID: userID)
             }
@@ -83,11 +80,11 @@ private struct PinnedHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Activity")
+                Text("Reef")
                     .font(.title.bold())
                 Text("resets Monday")
                     .font(.subheadline)
-                    .foregroundStyle(OceanPalette.ink.opacity(0.65))
+                    .foregroundStyle(Theme.text.opacity(0.65))
                 Spacer()
                 Button {
                     onFocusYou("you")
@@ -104,7 +101,7 @@ private struct PinnedHeader: View {
 
             CategoryChips(model: model, onChange: { onFocusYou(model.selectedID) })
         }
-        .foregroundStyle(OceanPalette.ink)
+        .foregroundStyle(Theme.text)
         .padding(.top, 6)
         .padding(.bottom, 10)
     }
@@ -138,7 +135,7 @@ private struct CategoryChips: View {
         } label: {
             Label(category.title, systemImage: category.systemImage)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(isSelected ? Color.white : OceanPalette.ink)
+                .foregroundStyle(isSelected ? Color.white : Theme.text)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
                 .glassEffect(isSelected ? .regular.tint(Theme.accent).interactive() : .regular.interactive(),
@@ -188,7 +185,7 @@ private struct TopOfReefRow: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 20)
         }
-        .foregroundStyle(OceanPalette.ink)
+        .foregroundStyle(Theme.text)
     }
 
     private func entry(_ ranked: RankedFriend) -> some View {
@@ -199,7 +196,7 @@ private struct TopOfReefRow: View {
             VStack(spacing: 6) {
                 Text(ranked.friend.initials)
                     .font(.system(size: isFirst ? 18 : 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(OceanPalette.ink)
+                    .foregroundStyle(Theme.text)
                     .frame(width: isFirst ? 62 : 52, height: isFirst ? 62 : 52)
                     .glassEffect(ranked.friend.isYou ? .regular.tint(Theme.yellow) : .regular, in: .circle)
                     .overlay(alignment: .topTrailing) {
