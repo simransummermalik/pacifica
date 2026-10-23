@@ -7,6 +7,8 @@ enum PlaceholderProfile {
 }
 
 struct ProfileView: View {
+    var name: String = PlaceholderProfile.name
+    var handle: String = PlaceholderProfile.handle
     @Environment(\.dismiss) private var dismiss
     @State private var showQR = false
 
@@ -49,7 +51,7 @@ struct ProfileView: View {
             .padding(.top, 8)
         }
         .fullScreenCover(isPresented: $showQR) {
-            QRCodeView()
+            QRCodeView(name: name, handle: handle)
         }
     }
 
@@ -85,9 +87,9 @@ struct ProfileView: View {
                 .glassEffect(.regular.tint(Theme.text), in: .circle)
 
             VStack(spacing: 4) {
-                Text(PlaceholderProfile.name)
+                Text(name)
                     .font(.title.weight(.bold))
-                Text(PlaceholderProfile.handle)
+                Text(handle)
                     .font(.title3)
                     .foregroundStyle(Theme.textSecondary)
             }
@@ -152,7 +154,9 @@ struct ProfileView: View {
     }
 
     private var signOut: some View {
-        Button {} label: {
+        Button {
+            Task { try? await SupabaseClientProvider.shared.auth.signOut() }
+        } label: {
             Text("Sign out")
                 .font(.headline)
                 .foregroundStyle(Theme.coral)

@@ -5,8 +5,8 @@ struct QRCodeView: View {
     @Environment(\.dismiss) private var dismiss
 
     // Placeholder until real accounts exist.
-    private let name = PlaceholderProfile.name
-    private let handle = PlaceholderProfile.handle
+    var name: String = PlaceholderProfile.name
+    var handle: String = PlaceholderProfile.handle
 
     private var payload: String { "pacifica://pay/\(handle.dropFirst())" }
 

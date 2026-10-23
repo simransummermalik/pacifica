@@ -1,4 +1,8 @@
 name: Pacifica
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift.git
+    from: 2.0.0
 options:
   bundleIdPrefix: com.pacifica
   deploymentTarget:
@@ -12,6 +16,8 @@ targets:
     type: application
     platform: iOS
     sources: [Pacifica]
+    dependencies:
+      - package: Supabase
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.pacifica.app

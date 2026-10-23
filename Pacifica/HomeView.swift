@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct HomeView: View {
+    let userID: UUID
+    @StateObject private var wallet = WalletViewModel()
+    @State private var profile: Profile?
     @State private var hideBalance = false
     @State private var showQR = false
     @State private var showProfile = false
@@ -15,7 +18,7 @@ struct HomeView: View {
                     VStack(spacing: 16) {
                         TopBar(onQRTap: { showQR = true }, onProfileTap: { showProfile = true })
                         OceanConditionsCard(viewModel: oceanConditions)
-                        BalanceCard(hideBalance: $hideBalance)
+                        BalanceCard(hideBalance: $hideBalance, wallet: wallet)
                         SavingsCard()
                         FishingCard()
                     }
@@ -26,12 +29,21 @@ struct HomeView: View {
             .scrollIndicators(.hidden)
         }
         .fullScreenCover(isPresented: $showQR) {
-            QRCodeView()
+            QRCodeView(name: displayName, handle: handle)
         }
         .fullScreenCover(isPresented: $showProfile) {
-            ProfileView()
+            ProfileView(name: displayName, handle: handle)
+        }
+        .task(id: userID) {
+            await wallet.load(userID: userID)
+            profile = try? await ProfileService().fetchProfile(userID: userID)
         }
     }
+}
+
+extension HomeView {
+    fileprivate var displayName: String { profile?.displayName ?? PlaceholderProfile.name }
+    fileprivate var handle: String { profile.map { "@\($0.username)" } ?? PlaceholderProfile.handle }
 }
 
 // MARK: - Top bar
@@ -75,6 +87,7 @@ private struct CircleButton: View {
 
 private struct BalanceCard: View {
     @Binding var hideBalance: Bool
+    @ObservedObject var wallet: WalletViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -95,10 +108,18 @@ private struct BalanceCard: View {
                 }
             }
 
-            Text(hideBalance ? "$•••" : "$0.00")
-                .font(.system(size: 76, weight: .bold, design: .rounded))
-                .minimumScaleFactor(0.6)
-                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(hideBalance ? "$•••" : wallet.formattedBalance)
+                    .font(.system(size: 76, weight: .bold, design: .rounded))
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
+                    .redacted(reason: wallet.isLoading ? .placeholder : [])
+                if let message = wallet.errorMessage {
+                    Text(message)
+                        .font(.footnote)
+                        .foregroundStyle(Theme.coral)
+                }
+            }
 
             HStack(spacing: 12) {
                 Button {} label: {
@@ -174,5 +195,5 @@ private struct FishingCard: View {
 }
 
 #Preview {
-    HomeView()
+    HomeView(userID: UUID())
 }

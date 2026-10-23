@@ -24,12 +24,13 @@ enum RootTab: CaseIterable, Hashable {
 
 /// Native tab bar: on iOS 26+ this is the floating Liquid Glass bar at the bottom.
 struct RootView: View {
+    let userID: UUID
     @State private var selection: RootTab = .pay
 
     var body: some View {
         TabView(selection: $selection) {
             Tab(RootTab.bank.title, systemImage: RootTab.bank.systemImage, value: .bank) {
-                HomeView()
+                HomeView(userID: userID)
             }
             Tab(RootTab.pay.title, systemImage: RootTab.pay.systemImage, value: .pay) {
                 PayView()
@@ -54,7 +55,7 @@ private struct ActivityPlaceholderView: View {
 }
 
 #Preview {
-    RootView()
+    RootView(userID: UUID())
 }
 
 struct RecentTransactionsView: View {
