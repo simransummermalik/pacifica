@@ -91,3 +91,60 @@ private struct ActivityPlaceholderView: View {
 #Preview {
     RootView()
 }
+
+struct RecentTransactionsView: View {
+
+    var body: some View {
+
+        VStack(alignment: .leading) {
+
+            Text("Recent Activity")
+                .font(.headline)
+                .foregroundColor(.white)
+
+            TransactionRow(
+                icon: "cart.fill",
+                title: "Amazon",
+                amount: "-$34.99"
+            )
+
+            TransactionRow(
+                icon: "cup.and.saucer.fill",
+                title: "Starbucks",
+                amount: "-$6.20"
+            )
+
+            TransactionRow(
+                icon: "dollarsign.circle.fill",
+                title: "Paycheck",
+                amount: "+$1,200"
+            )
+        }
+    }
+}
+
+struct TransactionRow: View {
+
+    let icon: String
+    let title: String
+    let amount: String
+
+    var body: some View {
+
+        HStack {
+
+            Image(systemName: icon)
+                .font(.title2)
+
+            Text(title)
+
+            Spacer()
+
+            Text(amount)
+                .bold()
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .cornerRadius(15)
+    }
+}
