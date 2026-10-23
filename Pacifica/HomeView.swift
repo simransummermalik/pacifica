@@ -7,6 +7,7 @@ struct HomeView: View {
     @State private var hideBalance = false
     @State private var showQR = false
     @State private var showProfile = false
+    @State private var moneySheet: MoneySheetView.Mode?
     @State private var oceanConditions = OceanConditionsViewModel()
 
     var body: some View {
@@ -18,7 +19,7 @@ struct HomeView: View {
                     VStack(spacing: 16) {
                         TopBar(onQRTap: { showQR = true }, onProfileTap: { showProfile = true })
                         OceanConditionsCard(viewModel: oceanConditions)
-                        BalanceCard(hideBalance: $hideBalance, wallet: wallet)
+                        BalanceCard(hideBalance: $hideBalance, wallet: wallet, onMoneyAction: { moneySheet = $0 })
                         SavingsCard()
                         FishingCard()
                     }
@@ -30,6 +31,11 @@ struct HomeView: View {
         }
         .fullScreenCover(isPresented: $showQR) {
             QRCodeView(name: displayName, handle: handle)
+        }
+        .sheet(item: $moneySheet) { mode in
+            MoneySheetView(mode: mode, balance: wallet.balance)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .fullScreenCover(isPresented: $showProfile) {
             ProfileView(name: displayName, handle: handle)
@@ -88,6 +94,7 @@ private struct CircleButton: View {
 private struct BalanceCard: View {
     @Binding var hideBalance: Bool
     @ObservedObject var wallet: WalletViewModel
+    let onMoneyAction: (MoneySheetView.Mode) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -122,7 +129,7 @@ private struct BalanceCard: View {
             }
 
             HStack(spacing: 12) {
-                Button {} label: {
+                Button { onMoneyAction(.add) } label: {
                     Text("Add money")
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(Color.white)
@@ -130,7 +137,7 @@ private struct BalanceCard: View {
                 }
                 .buttonStyle(.glassProminent)
                 .tint(Theme.accent)
-                Button {} label: {
+                Button { onMoneyAction(.withdraw) } label: {
                     Text("Withdraw")
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(Theme.text)
