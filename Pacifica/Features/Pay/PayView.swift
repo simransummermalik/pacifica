@@ -16,11 +16,25 @@ struct PayView: View {
         .padding(.horizontal, 20)
         .padding(.bottom, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .foregroundStyle(Theme.ink)
-        .background(Theme.background.ignoresSafeArea())
+        .foregroundStyle(Theme.text)
+        .background {
+            ZStack {
+                AppBackground()
+                TideBackground(level: tideLevel)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.85), value: tideLevel)
+            }
+        }
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .sensoryFeedback(.selection, trigger: viewModel.validInputCount)
         .sensoryFeedback(.warning, trigger: viewModel.invalidInputCount)
+    }
+
+    /// 0...1 water level for the current amount. Log scale so $5 and $5,000 both show clearly.
+    private var tideLevel: CGFloat {
+        let amount = Double(truncating: viewModel.amount as NSDecimalNumber)
+        guard amount > 0 else { return 0 }
+        let maxAmount = Double(truncating: PayViewModel.maxAmount as NSDecimalNumber)
+        return CGFloat(min(1, log10(amount + 1) / log10(maxAmount + 1))) * 0.8
     }
 
     private var topBar: some View {
@@ -59,13 +73,13 @@ struct PayView: View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
                 Button("Pool") {}
-                    .buttonStyle(.translucentPill)
+                    .buttonStyle(PillButtonStyle(fill: Theme.subtleFill, foreground: Theme.text))
                 Button("Request") { viewModel.request() }
-                    .buttonStyle(.translucentPill)
+                    .buttonStyle(PillButtonStyle(fill: Theme.subtleFill, foreground: Theme.text))
                     .disabled(viewModel.isZero)
             }
             Button("Pay") { viewModel.pay() }
-                .buttonStyle(.primaryPill)
+                .buttonStyle(PillButtonStyle(fill: Theme.accent, foreground: .white))
                 .disabled(viewModel.isZero)
         }
     }
@@ -81,7 +95,7 @@ private struct CircleIconButton: View {
             Image(systemName: systemName)
                 .font(.system(size: 18, weight: .semibold))
                 .frame(width: 44, height: 44)
-                .background(Theme.translucentFill, in: Circle())
+                .background(Theme.subtleFill, in: Circle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)

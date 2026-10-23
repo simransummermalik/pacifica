@@ -14,6 +14,8 @@ enum Theme {
 
     static let teal = Color(hex: 0x069494)
     static let coral = Color(hex: 0xE9724C)
+    /// Sunny yellow used for "you" on the Activity page.
+    static let yellow = Color(hex: 0xFFC83D)
     static let charcoal = Color(hex: 0x191716)
 
     /// Screen background for Home and QR: white in light mode, charcoal in dark mode.
@@ -21,6 +23,8 @@ enum Theme {
     static let text = Color(light: charcoal, dark: .white)
     static let textSecondary = text.opacity(0.55)
     static let accent = teal
+    /// Light fill for secondary buttons on the white / charcoal surface.
+    static let subtleFill = text.opacity(0.07)
     static let highlight = coral
     static let cardRadius: CGFloat = 28
 }
