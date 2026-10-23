@@ -34,7 +34,7 @@ struct RootView: View {
             switch selection {
             case .bank: HomeView(userID: userID)
             case .pay: PayView()
-            case .activity: ActivityPlaceholderView()
+            case .activity: ActivityView(userID: userID)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -80,14 +80,6 @@ struct RootView: View {
         .buttonStyle(.plain)
         .accessibilityLabel(tab.title)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-}
-
-private struct ActivityPlaceholderView: View {
-    var body: some View {
-        Text("Activity")
-            .font(.largeTitle.bold())
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
