@@ -2,8 +2,8 @@ import SwiftUI
 
 enum RootTab: CaseIterable, Hashable {
     case bank
-    case pay
     case activity
+    case pay
 
     var systemImage: String {
         switch self {
@@ -25,18 +25,18 @@ enum RootTab: CaseIterable, Hashable {
 /// Native tab bar: on iOS 26+ this is the floating Liquid Glass bar at the bottom.
 struct RootView: View {
     let userID: UUID
-    @State private var selection: RootTab = .pay
+    @State private var selection: RootTab = .activity
 
     var body: some View {
         TabView(selection: $selection) {
             Tab(RootTab.bank.title, systemImage: RootTab.bank.systemImage, value: .bank) {
                 HomeView(userID: userID)
             }
-            Tab(RootTab.pay.title, systemImage: RootTab.pay.systemImage, value: .pay) {
-                PayView()
-            }
             Tab(RootTab.activity.title, systemImage: RootTab.activity.systemImage, value: .activity) {
                 ActivityPlaceholderView()
+            }
+            Tab(RootTab.pay.title, systemImage: RootTab.pay.systemImage, value: .pay) {
+                PayView()
             }
         }
         .tint(Theme.text)
