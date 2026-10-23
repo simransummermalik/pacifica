@@ -26,11 +26,13 @@ enum RootTab: CaseIterable, Hashable {
 struct RootView: View {
     let userID: UUID
     @State private var selection: RootTab = .activity
+    /// Owned here so the conversation lasts the whole signed-in session; reset when a different user signs in.
+    @State private var askPacifica = AskPacificaViewModel()
 
     var body: some View {
         TabView(selection: $selection) {
             Tab(RootTab.bank.title, systemImage: RootTab.bank.systemImage, value: .bank) {
-                HomeView(userID: userID, onOpenActivity: { selection = .activity })
+                HomeView(userID: userID, askPacifica: askPacifica, onOpenActivity: { selection = .activity })
             }
             Tab(RootTab.activity.title, systemImage: RootTab.activity.systemImage, value: .activity) {
                 ActivityView(userID: userID)
@@ -40,6 +42,7 @@ struct RootView: View {
             }
         }
         .tint(Theme.text)
+        .onChange(of: userID) { askPacifica = AskPacificaViewModel() }
     }
 }
 

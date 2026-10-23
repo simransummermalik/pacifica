@@ -2,12 +2,14 @@ import SwiftUI
 
 struct HomeView: View {
     let userID: UUID
+    let askPacifica: AskPacificaViewModel
     var onOpenActivity: () -> Void = {}
     @StateObject private var wallet = WalletViewModel()
     @StateObject private var dailySelfie: DailySelfieViewModel
     @State private var profile: Profile?
-    init(userID: UUID, onOpenActivity: @escaping () -> Void = {}) {
+    init(userID: UUID, askPacifica: AskPacificaViewModel, onOpenActivity: @escaping () -> Void = {}) {
         self.userID = userID
+        self.askPacifica = askPacifica
         self.onOpenActivity = onOpenActivity
         _dailySelfie = StateObject(wrappedValue: DailySelfieViewModel(userID: userID))
     }
@@ -19,6 +21,8 @@ struct HomeView: View {
     @State private var showSavings = false
     @State private var moneySheet: MoneySheetView.Mode?
     @State private var oceanConditions = OceanConditionsViewModel()
+    @State private var showsAskPacifica = false
+    @State private var askDraft = ""
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -27,7 +31,12 @@ struct HomeView: View {
             ScrollView {
                 GlassEffectContainer(spacing: 16) {
                     VStack(spacing: 16) {
-                        TopBar(onQRTap: { showQR = true }, onProfileTap: { showProfile = true })
+                        TopBar(
+                            onQRTap: { showQR = true },
+                            onProfileTap: { showProfile = true },
+                            askDraft: $askDraft,
+                            onAsk: ask
+                        )
                         DailySelfieView(viewModel: dailySelfie)
                         OceanConditionsCard(viewModel: oceanConditions)
                         BalanceCard(hideBalance: $hideBalance, wallet: wallet, onMoneyAction: { moneySheet = $0 }, onOpen: { showCash = true })
@@ -57,6 +66,11 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $showProfile) {
             ProfileView(name: displayName, handle: handle)
         }
+        .sheet(isPresented: $showsAskPacifica) {
+            AskPacificaView(viewModel: askPacifica, priceContext: oceanConditions.priceContext)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
         .task(id: userID) {
             await wallet.load(userID: userID)
             profile = try? await ProfileService().fetchProfile(userID: userID)
@@ -65,6 +79,21 @@ struct HomeView: View {
 }
 
 extension HomeView {
+    /// Opens Ask Pacifica. With a question typed, sends it right away and clears the pill;
+    /// with an empty pill, just opens the chat (suggestion chips if there's no conversation yet).
+    fileprivate func ask() {
+        let question = askDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        askDraft = ""
+        showsAskPacifica = true
+        guard !question.isEmpty else { return }
+        if askPacifica.isWaiting {
+            // A reply is still on its way; leave the question in the chat's field instead of dropping it.
+            askPacifica.draft = question
+        } else {
+            Task { await askPacifica.send(question, priceContext: oceanConditions.priceContext) }
+        }
+    }
+
     fileprivate var displayName: String { profile?.displayName ?? PlaceholderProfile.name }
     fileprivate var handle: String { profile.map { "@\($0.username)" } ?? PlaceholderProfile.handle }
 }
@@ -74,6 +103,8 @@ extension HomeView {
 private struct TopBar: View {
     let onQRTap: () -> Void
     let onProfileTap: () -> Void
+    @Binding var askDraft: String
+    let onAsk: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -81,7 +112,7 @@ private struct TopBar: View {
                 CircleButton(systemImage: "qrcode")
             }
             .foregroundStyle(Theme.text)
-            Spacer()
+            AskPacificaPill(draft: $askDraft, onAsk: onAsk)
             Button(action: onProfileTap) {
                 Image(systemName: "fish.fill")
                     .font(.title3)
@@ -92,6 +123,62 @@ private struct TopBar: View {
             .accessibilityLabel("Profile")
         }
         .padding(.top, 8)
+    }
+}
+
+/// Search-style field that opens Ask Pacifica; same height and glass as the round top-bar buttons.
+private struct AskPacificaPill: View {
+    @Binding var draft: String
+    let onAsk: () -> Void
+
+    @FocusState private var isFocused: Bool
+
+    private var hasText: Bool {
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button(action: submit) {
+                Image(systemName: "sparkles")
+                    .font(.title3.weight(.semibold))
+                    .frame(width: 32, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open Ask Pacifica")
+
+            TextField("Ask Pacifica…", text: $draft)
+                .font(.body)
+                .submitLabel(.send)
+                .focused($isFocused)
+                .onSubmit(submit)
+                .accessibilityLabel("Ask Pacifica, your money assistant")
+
+            if hasText {
+                Button(action: submit) {
+                    Image(systemName: "arrow.up")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.surface)
+                        .frame(width: 32, height: 32)
+                        .background(Theme.text, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Send question")
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .foregroundStyle(Theme.text)
+        .padding(.leading, 12)
+        .padding(.trailing, 10)
+        .frame(maxWidth: .infinity, minHeight: 52)
+        .glassEffect(.regular.interactive(), in: .capsule)
+        .animation(.easeOut(duration: 0.15), value: hasText)
+    }
+
+    private func submit() {
+        isFocused = false
+        onAsk()
     }
 }
 
@@ -249,5 +336,5 @@ private struct FishingCard: View {
 }
 
 #Preview {
-    HomeView(userID: UUID())
+    HomeView(userID: UUID(), askPacifica: AskPacificaViewModel())
 }

@@ -4,7 +4,6 @@ import SwiftUI
 struct OceanConditionsDetailView: View {
     let viewModel: OceanConditionsViewModel
 
-    @Environment(\.dismiss) private var dismiss
     @State private var selection: PriceCategory = .groceries
 
     var body: some View {
@@ -52,16 +51,7 @@ struct OceanConditionsDetailView: View {
                 }
             }
             Spacer()
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.title3.weight(.semibold))
-                    .frame(width: 52, height: 52)
-                    .glassEffect(.regular.interactive(), in: .circle)
-            }
-            .foregroundStyle(Theme.text)
-            .accessibilityLabel("Close")
+            CloseButton()
         }
     }
 
