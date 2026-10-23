@@ -6,7 +6,7 @@ Younger customers expect banking to feel as simple and social as the apps they a
 
 ## Design
 
-The app's design is inspired by Venmo: a clean, minimal interface with a prominent cash balance, simple actions such as adding money and withdrawing, and easy-to-scan cards.
+a clean, minimal interface with a prominent cash balance, simple actions such as adding money and withdrawing, and easy-to-scan cards.
 
 ## Status
 

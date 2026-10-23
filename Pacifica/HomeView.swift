@@ -4,7 +4,14 @@ struct HomeView: View {
     let userID: UUID
     var onOpenActivity: () -> Void = {}
     @StateObject private var wallet = WalletViewModel()
+    @StateObject private var dailySelfie: DailySelfieViewModel
     @State private var profile: Profile?
+    init(userID: UUID, onOpenActivity: @escaping () -> Void = {}) {
+        self.userID = userID
+        self.onOpenActivity = onOpenActivity
+        _dailySelfie = StateObject(wrappedValue: DailySelfieViewModel(userID: userID))
+    }
+
     @State private var hideBalance = false
     @State private var showQR = false
     @State private var showProfile = false
@@ -21,6 +28,7 @@ struct HomeView: View {
                 GlassEffectContainer(spacing: 16) {
                     VStack(spacing: 16) {
                         TopBar(onQRTap: { showQR = true }, onProfileTap: { showProfile = true })
+                        DailySelfieView(viewModel: dailySelfie)
                         OceanConditionsCard(viewModel: oceanConditions)
                         BalanceCard(hideBalance: $hideBalance, wallet: wallet, onMoneyAction: { moneySheet = $0 }, onOpen: { showCash = true })
                         SavingsCard(onOpen: { showSavings = true })

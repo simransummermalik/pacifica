@@ -1,15 +1,15 @@
-import Foundation
+import Supabase
 import SwiftUI
 
 struct AppRootView: View {
-    @State private var isSignedIn: Bool?
     @State private var userID: UUID?
+    @State private var isCheckingSession = true
 
     var body: some View {
         Group {
-            if isSignedIn == nil {
+            if isCheckingSession {
                 ProgressView("Loading Pacifica…")
-            } else if isSignedIn == true, let userID {
+            } else if let userID {
                 RootView(userID: userID)
             } else {
                 AuthView()
@@ -21,8 +21,8 @@ struct AppRootView: View {
                     continue
                 }
 
-                isSignedIn = state.session != nil
                 userID = state.session?.user.id
+                isCheckingSession = false
             }
         }
     }

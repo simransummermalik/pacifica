@@ -159,22 +159,6 @@ struct DebtPayment: Codable, Identifiable, Equatable {
     }
 }
 
-struct DailySelfie: Codable, Identifiable, Equatable {
-    let id: UUID
-    let userId: UUID
-    let storagePath: String
-    let createdAt: String
-    let expiresAt: String
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case userId = "user_id"
-        case storagePath = "storage_path"
-        case createdAt = "created_at"
-        case expiresAt = "expires_at"
-    }
-}
-
 struct PaymentRequest: Codable, Identifiable, Equatable {
     let id: UUID
     let requesterId: UUID

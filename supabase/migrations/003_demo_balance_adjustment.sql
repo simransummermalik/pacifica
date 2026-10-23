@@ -1,5 +1,4 @@
--- Run after 001_pacifica_schema.sql.
--- Keeps demo balance changes atomic and limited to the signed-in user's wallet.
+-- Safe standalone installation of the demo balance adjustment RPC.
 
 create or replace function public.adjust_demo_balance(p_delta numeric)
 returns public.wallets
@@ -33,7 +32,8 @@ begin
   end if;
 
   update public.wallets
-  set demo_balance = demo_balance + p_delta, updated_at = now()
+  set demo_balance = demo_balance + p_delta,
+      updated_at = now()
   where user_id = v_user_id
   returning * into v_wallet;
 
