@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 enum RootTab: CaseIterable, Hashable {
@@ -23,13 +24,15 @@ enum RootTab: CaseIterable, Hashable {
 }
 
 struct RootView: View {
-    @State private var selection: RootTab = .pay
+    let userID: UUID
+
+    @State private var selection: RootTab = .bank
     @Namespace private var tabPill
 
     var body: some View {
         Group {
             switch selection {
-            case .bank: HomeView()
+            case .bank: HomeView(userID: userID)
             case .pay: PayView()
             case .activity: ActivityPlaceholderView()
             }
@@ -89,7 +92,7 @@ private struct ActivityPlaceholderView: View {
 }
 
 #Preview {
-    RootView()
+    RootView(userID: UUID())
 }
 
 struct RecentTransactionsView: View {
