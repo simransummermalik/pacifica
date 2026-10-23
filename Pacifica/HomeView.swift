@@ -4,6 +4,8 @@ struct HomeView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                OceanConditionsCard()
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Cash balance")
                         .font(.headline)
