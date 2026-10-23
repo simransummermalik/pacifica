@@ -23,6 +23,17 @@ struct WalletService {
             .value
     }
 
+    func adjustDemoBalance(delta: Decimal) async throws -> Wallet {
+        guard delta != 0 else {
+            throw PacificaServiceError.invalidInput("Enter an amount greater than zero.")
+        }
+
+        return try await client
+            .rpc("adjust_demo_balance", params: AdjustDemoBalanceParameters(delta: delta))
+            .execute()
+            .value
+    }
+
     func sendMoney(
         to recipientID: UUID,
         amount: Decimal,
@@ -151,5 +162,13 @@ private struct RespondToPaymentRequestParameters: Encodable {
         case requestID = "p_request_id"
         case action = "p_action"
         case idempotencyKey = "p_idempotency_key"
+    }
+}
+
+private struct AdjustDemoBalanceParameters: Encodable {
+    let delta: Decimal
+
+    enum CodingKeys: String, CodingKey {
+        case delta = "p_delta"
     }
 }

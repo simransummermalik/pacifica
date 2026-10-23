@@ -14,6 +14,22 @@ final class WalletViewModel: ObservableObject {
         return formatter.string(from: NSDecimalNumber(decimal: balance)) ?? "$0.00"
     }
 
+    func adjustBalance(delta: Decimal) async -> Bool {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            let wallet = try await WalletService().adjustDemoBalance(delta: delta)
+            balance = wallet.demoBalance
+            transactions = try await WalletService().fetchTransactions()
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
     func load(userID: UUID) async {
         isLoading = true
         errorMessage = nil

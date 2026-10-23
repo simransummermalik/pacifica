@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     let userID: UUID
     @StateObject private var wallet = WalletViewModel()
+    @State private var balanceAction: BalanceAction?
 
     var body: some View {
         ScrollView {
@@ -27,9 +28,13 @@ struct HomeView: View {
                 }
 
                 HStack(spacing: 12) {
-                    Button("Add money") {}
+                    Button("Add money") {
+                        balanceAction = .add
+                    }
                         .buttonStyle(.borderedProminent)
-                    Button("Withdraw") {}
+                    Button("Withdraw") {
+                        balanceAction = .withdraw
+                    }
                         .buttonStyle(.bordered)
                 }
                 .controlSize(.large)
@@ -56,6 +61,80 @@ struct HomeView: View {
         }
         .task(id: userID) {
             await wallet.load(userID: userID)
+        }
+        .sheet(item: $balanceAction) { action in
+            BalanceAdjustmentView(action: action) { amount in
+                await wallet.adjustBalance(delta: action.delta(for: amount))
+            }
+        }
+    }
+}
+
+private enum BalanceAction: String, Identifiable {
+    case add
+    case withdraw
+
+    var id: String { rawValue }
+    var title: String { self == .add ? "Add money" : "Withdraw" }
+    var deltaSign: Decimal { self == .add ? 1 : -1 }
+
+    func delta(for amount: Decimal) -> Decimal {
+        amount * deltaSign
+    }
+}
+
+private struct BalanceAdjustmentView: View {
+    @Environment(\.dismiss) private var dismiss
+    let action: BalanceAction
+    let submit: (Decimal) async -> Bool
+
+    @State private var amountText = "50"
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(action.title) {
+                    TextField("Amount", text: $amountText)
+                        .keyboardType(.decimalPad)
+
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+
+                    Button(action.title) {
+                        Task { await save() }
+                    }
+                    .disabled(isSaving)
+                }
+            }
+            .navigationTitle("Demo balance")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func save() async {
+        guard let amount = Decimal(string: amountText), amount > 0 else {
+            errorMessage = "Enter a valid amount."
+            return
+        }
+
+        isSaving = true
+        errorMessage = nil
+        let succeeded = await submit(amount)
+        isSaving = false
+
+        if succeeded {
+            dismiss()
+        } else {
+            errorMessage = "The balance could not be updated."
         }
     }
 }
