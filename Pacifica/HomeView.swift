@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @State private var hideBalance = false
     @State private var showQR = false
+    @State private var oceanConditions = OceanConditionsViewModel()
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -12,7 +13,7 @@ struct HomeView: View {
                 GlassEffectContainer(spacing: 16) {
                     VStack(spacing: 16) {
                         TopBar(onQRTap: { showQR = true })
-                        OceanConditionsCard()
+                        OceanConditionsCard(viewModel: oceanConditions)
                         BalanceCard(hideBalance: $hideBalance)
                         SavingsCard()
                     }
