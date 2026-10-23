@@ -25,7 +25,22 @@ struct ActivityView: View {
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
 
-                        ForEach(viewModel.posts) { post in
+                        if let goalBreak = viewModel.latestGoalBreak {
+                            GoalBreakBanner(
+                                post: goalBreak,
+                                profile: viewModel.profile(for: goalBreak),
+                                counts: viewModel.counts(for: goalBreak),
+                                selectedVote: viewModel.myVotes[goalBreak.id],
+                                onVote: { type in
+                                    Task { await viewModel.toggleVote(postID: goalBreak.id, type: type) }
+                                }
+                            )
+                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 10, trailing: 16))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                        }
+
+                        ForEach(viewModel.posts.filter { $0.postType != "goal_break" }) { post in
                             ActivityPostCard(
                                 post: post,
                                 profile: viewModel.profile(for: post),
@@ -68,6 +83,52 @@ struct ActivityView: View {
                 await viewModel.load()
             }
         }
+    }
+}
+
+private struct GoalBreakBanner: View {
+    let post: ActivityPost
+    let profile: ActivityProfile?
+    let counts: VoteCounts
+    let selectedVote: String?
+    let onVote: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Goal crossed", systemImage: "exclamationmark.triangle.fill")
+                .font(.headline)
+                .foregroundStyle(.red)
+
+            Text("\(profile?.displayName ?? "Someone") broke a spending goal")
+                .font(.title3.weight(.bold))
+
+            if let caption = post.caption {
+                Text(caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 16) {
+                VoteButton(
+                    title: "Applaud",
+                    systemImage: "hand.thumbsup.fill",
+                    count: counts.upvotes,
+                    isSelected: selectedVote == "upvote"
+                ) {
+                    onVote("upvote")
+                }
+                VoteButton(
+                    title: "Downvote",
+                    systemImage: "hand.thumbsdown.fill",
+                    count: counts.downvotes,
+                    isSelected: selectedVote == "downvote"
+                ) {
+                    onVote("downvote")
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 18))
     }
 }
 
@@ -176,14 +237,16 @@ private struct ActivityPostCard: View {
 
             HStack(spacing: 16) {
                 VoteButton(
-                    systemImage: "arrow.up",
+                    title: "Applaud",
+                    systemImage: "hand.thumbsup.fill",
                     count: counts.upvotes,
                     isSelected: selectedVote == "upvote"
                 ) {
                     onVote("upvote")
                 }
                 VoteButton(
-                    systemImage: "arrow.down",
+                    title: "Downvote",
+                    systemImage: "hand.thumbsdown.fill",
                     count: counts.downvotes,
                     isSelected: selectedVote == "downvote"
                 ) {
@@ -227,6 +290,7 @@ private struct ActivityPostCard: View {
 }
 
 private struct VoteButton: View {
+    let title: String
     let systemImage: String
     let count: Int
     let isSelected: Bool
@@ -234,7 +298,7 @@ private struct VoteButton: View {
 
     var body: some View {
         Button(action: action) {
-            Label("\(count)", systemImage: systemImage)
+            Label("\(title) \(count)", systemImage: systemImage)
                 .foregroundStyle(isSelected ? Theme.accent : Color.secondary)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
@@ -244,6 +308,7 @@ private struct VoteButton: View {
                 )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(count)")
     }
 }
 

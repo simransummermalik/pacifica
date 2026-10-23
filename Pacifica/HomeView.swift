@@ -3,16 +3,20 @@ import SwiftUI
 
 struct HomeView: View {
     let userID: UUID
+    let onOpenUpdates: () -> Void
 
     @State private var hideBalance = false
     @State private var showQR = false
+    @State private var showGoals = false
+    @State private var showCircleGames = false
     @State private var balanceAction: BalanceAction?
     @State private var oceanConditions = OceanConditionsViewModel()
     @StateObject private var wallet: HomeWalletViewModel
     @StateObject private var dailySelfie: DailySelfieViewModel
 
-    init(userID: UUID) {
+    init(userID: UUID, onOpenUpdates: @escaping () -> Void = {}) {
         self.userID = userID
+        self.onOpenUpdates = onOpenUpdates
         _wallet = StateObject(wrappedValue: HomeWalletViewModel(userID: userID))
         _dailySelfie = StateObject(wrappedValue: DailySelfieViewModel(userID: userID))
     }
@@ -35,6 +39,11 @@ struct HomeView: View {
                             onAddMoney: { balanceAction = .add },
                             onWithdraw: { balanceAction = .withdraw }
                         )
+                        BankSocialActions(
+                            onGoals: { showGoals = true },
+                            onUpdates: onOpenUpdates,
+                            onCircleGames: { showCircleGames = true }
+                        )
                         SavingsCard()
                     }
                 }
@@ -54,6 +63,55 @@ struct HomeView: View {
                 await wallet.adjust(delta: action.delta(for: amount))
             }
         }
+        .sheet(isPresented: $showGoals) {
+            GoalsView(userID: userID)
+        }
+        .sheet(isPresented: $showCircleGames) {
+            CircleGamesView(userID: userID)
+        }
+    }
+}
+
+private struct BankSocialActions: View {
+    let onGoals: () -> Void
+    let onUpdates: () -> Void
+    let onCircleGames: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Circle tools")
+                .font(.title3.weight(.semibold))
+
+            HStack(spacing: 10) {
+                BankToolButton(title: "Goals", systemImage: "target", action: onGoals)
+                BankToolButton(title: "Updates", systemImage: "bubble.left.and.bubble.right", action: onUpdates)
+                BankToolButton(title: "Games", systemImage: "trophy", action: onCircleGames)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardRadius))
+    }
+}
+
+private struct BankToolButton: View {
+    let title: String
+    let systemImage: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.title3.weight(.semibold))
+                Text(title)
+                    .font(.caption.weight(.semibold))
+            }
+            .foregroundStyle(Theme.text)
+            .frame(maxWidth: .infinity, minHeight: 60)
+            .background(Theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
     }
 }
 

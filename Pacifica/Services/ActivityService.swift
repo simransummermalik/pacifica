@@ -4,6 +4,12 @@ import Supabase
 struct ActivityService {
     private let client = SupabaseClientProvider.shared
 
+    func syncGoalBreakUpdates() async throws {
+        try await client
+            .rpc("sync_goal_break_updates")
+            .execute()
+    }
+
     func fetchPosts(limit: Int = 50) async throws -> [ActivityPost] {
         try await client
             .from("feed_posts")

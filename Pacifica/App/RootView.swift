@@ -36,7 +36,7 @@ struct RootView: View {
         Group {
             switch selection {
             case .home: FishHomeView(userID: userID)
-            case .bank: HomeView(userID: userID)
+            case .bank: HomeView(userID: userID, onOpenUpdates: { selection = .activity })
             case .pay: PayView()
             case .activity: ActivityView(userID: userID)
             }

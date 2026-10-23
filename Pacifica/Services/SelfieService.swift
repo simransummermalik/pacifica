@@ -20,32 +20,43 @@ struct SelfieService {
     }
 
     func uploadSelfie(imageData: Data, userID: UUID) async throws -> DailySelfie {
-        if let latest = try await fetchLatestSelfie(userID: userID),
+        guard let signedInUserID = client.auth.currentUser?.id else {
+            throw PacificaServiceError.notSignedIn
+        }
+
+        if let latest = try await fetchLatestSelfie(userID: signedInUserID),
            let expiresAt = parseDate(latest.expiresAt),
            expiresAt > Date()
         {
             throw PacificaServiceError.selfieCooldown(expiresAt)
         }
 
-        let path = "\(userID.uuidString)/\(UUID().uuidString).jpg"
+        let userFolder = signedInUserID.uuidString.lowercased()
+        let path = "\(userFolder)/\(UUID().uuidString).jpg"
         let expiresAt = Date().addingTimeInterval(selfieCooldown)
         let payload = DailySelfieInsert(
-            userID: userID,
+            userID: signedInUserID,
             storagePath: path,
             expiresAt: iso8601String(expiresAt)
         )
 
-        try await client.storage
-            .from(bucket)
-            .upload(
-                path,
-                data: imageData,
-                options: FileOptions(
-                    cacheControl: "18000",
-                    contentType: "image/jpeg",
-                    upsert: false
+        do {
+            try await client.storage
+                .from(bucket)
+                .upload(
+                    path,
+                    data: imageData,
+                    options: FileOptions(
+                        cacheControl: "18000",
+                        contentType: "image/jpeg",
+                        upsert: false
+                    )
                 )
+        } catch {
+            throw PacificaServiceError.invalidInput(
+                "Photo storage was blocked: \(error.localizedDescription)"
             )
+        }
 
         do {
             return try await client
@@ -57,7 +68,9 @@ struct SelfieService {
                 .value
         } catch {
             _ = try? await client.storage.from(bucket).remove(paths: [path])
-            throw error
+            throw PacificaServiceError.invalidInput(
+                "Photo record was blocked: \(error.localizedDescription)"
+            )
         }
     }
 

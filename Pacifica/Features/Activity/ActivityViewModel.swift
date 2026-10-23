@@ -6,6 +6,7 @@ final class ActivityViewModel: ObservableObject {
     let currentUserID: UUID
 
     @Published private(set) var posts: [ActivityPost] = []
+    @Published private(set) var latestGoalBreak: ActivityPost?
     @Published private(set) var profiles: [UUID: ActivityProfile] = [:]
     @Published private(set) var voteCounts: [UUID: VoteCounts] = [:]
     @Published private(set) var myVotes: [UUID: String] = [:]
@@ -27,12 +28,16 @@ final class ActivityViewModel: ObservableObject {
 
         do {
             let service = ActivityService()
+            // The sync is best-effort so Activity still loads if the migration
+            // has not been run in Supabase yet.
+            try? await service.syncGoalBreakUpdates()
             let fetchedPosts = try await service.fetchPosts()
             let fetchedProfiles = try await service.fetchProfiles()
             let fetchedReactions = try await service.fetchReactions()
             let fetchedComments = try await service.fetchComments()
 
             self.posts = fetchedPosts
+            latestGoalBreak = fetchedPosts.first { $0.postType == "goal_break" }
             self.profiles = Dictionary(
                 uniqueKeysWithValues: fetchedProfiles.map { ($0.id, $0) }
             )
