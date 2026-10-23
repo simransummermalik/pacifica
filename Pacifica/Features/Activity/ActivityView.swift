@@ -8,6 +8,7 @@ struct ActivityView: View {
     @State private var showTransactions = false
 
     var body: some View {
+        GeometryReader { geo in
         ScrollViewReader { proxy in
             // Scroll area and card are stacked (not overlaid), so the scroll area is exactly the visible
             // space above the card and "centered" really means the middle of what you can see.
@@ -16,6 +17,7 @@ struct ActivityView: View {
                     VStack(spacing: 0) {
                         // Title, categories, podium and Transactions button all scroll away with the ocean.
                         VStack(spacing: 0) {
+                            Color.clear.frame(height: geo.safeAreaInsets.top)
                             PinnedHeader(model: model) { id in focus(on: id, using: proxy) }
                             TopOfReefRow(model: model, onOpenTransactions: { showTransactions = true }) { id in focus(on: id, using: proxy) }
                                 .padding(.top, 6)
@@ -33,13 +35,13 @@ struct ActivityView: View {
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
-                            .ignoresSafeArea(edges: .top)
                         }
 
                         OceanTrack(model: model) { id in focus(on: id, using: proxy) }
                     }
                 }
                 .scrollIndicators(.hidden)
+                .ignoresSafeArea(edges: .top)
 
                 YourFishCard(model: model)
                     .padding(.horizontal, 16)
@@ -55,6 +57,7 @@ struct ActivityView: View {
                 try? await Task.sleep(for: .seconds(1.2))
                 focus(on: "you", using: proxy)
             }
+        }
         }
     }
 
