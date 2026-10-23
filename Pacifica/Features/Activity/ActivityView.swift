@@ -374,7 +374,7 @@ private struct YourFishCard: View {
         }
         .foregroundStyle(.white)
         .padding(18)
-        .glassEffect(.regular.tint(Color.black.opacity(0.25)), in: .rect(cornerRadius: 26))
+        .glassEffect(.regular, in: .rect(cornerRadius: 26))
         .animation(.spring(response: 0.6, dampingFraction: 0.85), value: model.category)
         .animation(.spring(response: 0.6, dampingFraction: 0.85), value: model.selectedID)
     }
