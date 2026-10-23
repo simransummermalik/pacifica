@@ -9,13 +9,13 @@ struct ActivityView: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            // Header, scroll area and card are stacked (not overlaid), so the scroll area is exactly the visible
-            // space between them and "centered" really means the middle of what you can see.
+            // Scroll area and card are stacked (not overlaid), so the scroll area is exactly the visible
+            // space above the card and "centered" really means the middle of what you can see.
             VStack(spacing: 0) {
-                PinnedHeader(model: model) { id in focus(on: id, using: proxy) }
-
                 ScrollView {
                     VStack(spacing: 0) {
+                        // Title, categories, podium and Transactions button all scroll away with the ocean.
+                        PinnedHeader(model: model) { id in focus(on: id, using: proxy) }
                         TopOfReefRow(model: model, onOpenTransactions: { showTransactions = true }) { id in focus(on: id, using: proxy) }
                             .padding(.top, 6)
                             .padding(.bottom, 26)
@@ -25,14 +25,6 @@ struct ActivityView: View {
                     }
                 }
                 .scrollIndicators(.hidden)
-                .overlay(alignment: .top) {
-                    // Soft edge under the categories: the ocean blurs out as it scrolls up behind the header.
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                        .mask(LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom))
-                        .frame(height: 32)
-                        .allowsHitTesting(false)
-                }
 
                 YourFishCard(model: model)
                     .padding(.horizontal, 16)
@@ -63,7 +55,7 @@ struct ActivityView: View {
 
 // MARK: - Sky and pinned header
 
-/// Title and category chips stay on screen while you dive, so you can switch category from anywhere in the ocean.
+/// Title and category chips at the top of the page; they scroll with the ocean.
 private struct PinnedHeader: View {
     @Bindable var model: ReefViewModel
     let onFocusYou: (String) -> Void
