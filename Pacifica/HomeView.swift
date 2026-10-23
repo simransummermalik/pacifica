@@ -4,6 +4,7 @@ struct HomeView: View {
     let userID: UUID
     @StateObject private var wallet = WalletViewModel()
     @State private var balanceAction: BalanceAction?
+    @State private var isSendMoneyPresented = false
 
     var body: some View {
         ScrollView {
@@ -36,6 +37,10 @@ struct HomeView: View {
                         balanceAction = .withdraw
                     }
                         .buttonStyle(.bordered)
+                    Button("Send money") {
+                        isSendMoneyPresented = true
+                    }
+                        .buttonStyle(.bordered)
                 }
                 .controlSize(.large)
                 .buttonBorderShape(.capsule)
@@ -65,6 +70,11 @@ struct HomeView: View {
         .sheet(item: $balanceAction) { action in
             BalanceAdjustmentView(action: action) { amount in
                 await wallet.adjustBalance(delta: action.delta(for: amount))
+            }
+        }
+        .sheet(isPresented: $isSendMoneyPresented) {
+            SendMoneyView(currentUserID: userID) { recipientID, amount, note in
+                try await wallet.sendMoney(to: recipientID, amount: amount, note: note)
             }
         }
     }
@@ -167,6 +177,137 @@ private struct TransactionRow: View {
                 .foregroundStyle(isIncoming ? .green : .primary)
         }
         .padding(.vertical, 4)
+    }
+}
+
+private struct SendMoneyView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let currentUserID: UUID
+    let submit: (UUID, Decimal, String?) async throws -> Void
+
+    @State private var username = ""
+    @State private var searchResults: [Profile] = []
+    @State private var selectedRecipient: Profile?
+    @State private var amountText = "25"
+    @State private var note = ""
+    @State private var isSearching = false
+    @State private var isSending = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Recipient") {
+                    TextField("Search username", text: $username)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .onSubmit { Task { await search() } }
+
+                    Button("Search") {
+                        Task { await search() }
+                    }
+                    .disabled(username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSearching)
+
+                    if isSearching {
+                        ProgressView()
+                    }
+
+                    ForEach(searchResults) { profile in
+                        Button {
+                            selectedRecipient = profile
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(profile.displayName)
+                                Text("@\(profile.username)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .foregroundStyle(.primary)
+                    }
+
+                    if let selectedRecipient {
+                        Label(
+                            "Sending to @\(selectedRecipient.username)",
+                            systemImage: "checkmark.circle.fill"
+                        )
+                        .foregroundStyle(.green)
+                    }
+                }
+
+                Section("Payment") {
+                    TextField("Amount", text: $amountText)
+                        .keyboardType(.decimalPad)
+                    TextField("Note (optional)", text: $note)
+                }
+
+                if let errorMessage {
+                    Section {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+                }
+
+                Section {
+                    Button("Send money") {
+                        Task { await send() }
+                    }
+                    .disabled(selectedRecipient == nil || isSending)
+                }
+            }
+            .navigationTitle("Send money")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func search() async {
+        let query = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+
+        isSearching = true
+        errorMessage = nil
+        defer { isSearching = false }
+
+        do {
+            searchResults = try await ProfileService()
+                .searchUsers(username: query)
+                .filter { $0.id != currentUserID }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func send() async {
+        guard let selectedRecipient else {
+            errorMessage = "Choose a recipient first."
+            return
+        }
+        guard let amount = Decimal(string: amountText), amount > 0 else {
+            errorMessage = "Enter a valid amount."
+            return
+        }
+
+        isSending = true
+        errorMessage = nil
+        defer { isSending = false }
+
+        do {
+            let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
+            try await submit(
+                selectedRecipient.id,
+                amount,
+                trimmedNote.isEmpty ? nil : trimmedNote
+            )
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 
