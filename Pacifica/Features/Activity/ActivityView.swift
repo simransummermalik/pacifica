@@ -395,8 +395,7 @@ private struct DepthBar: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(.white.opacity(0.18))
                 Capsule()
-                    .fill(LinearGradient(colors: [Color(hex: 0x6AD0F5), Theme.yellow],
-                                         startPoint: .leading, endPoint: .trailing))
+                    .fill(Theme.yellow)
                     .frame(width: max(geo.size.width * fraction, 10))
             }
         }
