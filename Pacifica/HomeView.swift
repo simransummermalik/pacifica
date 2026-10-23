@@ -1,21 +1,24 @@
-import Foundation
 import SwiftUI
 
 struct HomeView: View {
     let userID: UUID
+    var onOpenActivity: () -> Void = {}
+    @StateObject private var wallet = WalletViewModel()
+    @StateObject private var dailySelfie: DailySelfieViewModel
+    @State private var profile: Profile?
+    init(userID: UUID, onOpenActivity: @escaping () -> Void = {}) {
+        self.userID = userID
+        self.onOpenActivity = onOpenActivity
+        _dailySelfie = StateObject(wrappedValue: DailySelfieViewModel(userID: userID))
+    }
 
     @State private var hideBalance = false
     @State private var showQR = false
-    @State private var balanceAction: BalanceAction?
+    @State private var showProfile = false
+    @State private var showCash = false
+    @State private var showSavings = false
+    @State private var moneySheet: MoneySheetView.Mode?
     @State private var oceanConditions = OceanConditionsViewModel()
-    @StateObject private var wallet: HomeWalletViewModel
-    @StateObject private var dailySelfie: DailySelfieViewModel
-
-    init(userID: UUID) {
-        self.userID = userID
-        _wallet = StateObject(wrappedValue: HomeWalletViewModel(userID: userID))
-        _dailySelfie = StateObject(wrappedValue: DailySelfieViewModel(userID: userID))
-    }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -24,18 +27,12 @@ struct HomeView: View {
             ScrollView {
                 GlassEffectContainer(spacing: 16) {
                     VStack(spacing: 16) {
-                        TopBar(onQRTap: { showQR = true })
+                        TopBar(onQRTap: { showQR = true }, onProfileTap: { showProfile = true })
                         DailySelfieView(viewModel: dailySelfie)
                         OceanConditionsCard(viewModel: oceanConditions)
-                        BalanceCard(
-                            hideBalance: $hideBalance,
-                            balance: wallet.formattedBalance,
-                            isLoading: wallet.isLoading,
-                            errorMessage: wallet.errorMessage,
-                            onAddMoney: { balanceAction = .add },
-                            onWithdraw: { balanceAction = .withdraw }
-                        )
-                        SavingsCard()
+                        BalanceCard(hideBalance: $hideBalance, wallet: wallet, onMoneyAction: { moneySheet = $0 }, onOpen: { showCash = true })
+                        SavingsCard(onOpen: { showSavings = true })
+                        FishingCard(onOpen: onOpenActivity)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -44,23 +41,39 @@ struct HomeView: View {
             .scrollIndicators(.hidden)
         }
         .fullScreenCover(isPresented: $showQR) {
-            QRCodeView()
+            QRCodeView(name: displayName, handle: handle)
+        }
+        .sheet(item: $moneySheet) { mode in
+            MoneySheetView(mode: mode, wallet: wallet)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
+        .fullScreenCover(isPresented: $showCash) {
+            CashBalanceView(userID: userID, wallet: wallet)
+        }
+        .fullScreenCover(isPresented: $showSavings) {
+            SavingsView()
+        }
+        .fullScreenCover(isPresented: $showProfile) {
+            ProfileView(name: displayName, handle: handle)
         }
         .task(id: userID) {
-            await wallet.load()
-        }
-        .sheet(item: $balanceAction) { action in
-            BalanceAdjustmentView(action: action) { amount in
-                await wallet.adjust(delta: action.delta(for: amount))
-            }
+            await wallet.load(userID: userID)
+            profile = try? await ProfileService().fetchProfile(userID: userID)
         }
     }
+}
+
+extension HomeView {
+    fileprivate var displayName: String { profile?.displayName ?? PlaceholderProfile.name }
+    fileprivate var handle: String { profile.map { "@\($0.username)" } ?? PlaceholderProfile.handle }
 }
 
 // MARK: - Top bar
 
 private struct TopBar: View {
     let onQRTap: () -> Void
+    let onProfileTap: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -69,11 +82,14 @@ private struct TopBar: View {
             }
             .foregroundStyle(Theme.text)
             Spacer()
-            Image(systemName: "person.fill")
-                .font(.title3)
-                .foregroundStyle(Theme.surface)
-                .frame(width: 52, height: 52)
-                .glassEffect(.regular.tint(Theme.text).interactive(), in: .circle)
+            Button(action: onProfileTap) {
+                Image(systemName: "fish.fill")
+                    .font(.title3)
+                    .foregroundStyle(Theme.surface)
+                    .frame(width: 52, height: 52)
+                    .glassEffect(.regular.tint(Theme.text).interactive(), in: .circle)
+            }
+            .accessibilityLabel("Profile")
         }
         .padding(.top, 8)
     }
@@ -94,49 +110,49 @@ private struct CircleButton: View {
 
 private struct BalanceCard: View {
     @Binding var hideBalance: Bool
-    let balance: String
-    let isLoading: Bool
-    let errorMessage: String?
-    let onAddMoney: () -> Void
-    let onWithdraw: () -> Void
+    @ObservedObject var wallet: WalletViewModel
+    let onMoneyAction: (MoneySheetView.Mode) -> Void
+    let onOpen: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             HStack {
-                HStack(spacing: 8) {
-                    Text("Cash balance")
-                        .font(.title3.weight(.semibold))
-                    Image(systemName: "chevron.right")
-                        .font(.subheadline.weight(.semibold))
+                Button(action: onOpen) {
+                    HStack(spacing: 8) {
+                        Text("Cash balance")
+                            .font(.title3.weight(.semibold))
+                        Image(systemName: "chevron.right")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .foregroundStyle(Theme.text)
+                    .contentShape(.rect)
                 }
+                .buttonStyle(.plain)
                 Spacer()
                 Button {
                     hideBalance.toggle()
                 } label: {
-                    Image(systemName: hideBalance ? "fish" : "fish.fill")
+                    Image(systemName: hideBalance ? "eye" : "eye.slash")
                         .font(.title3)
                         .foregroundStyle(Theme.text)
                 }
             }
 
-            if isLoading {
-                ProgressView()
-                    .frame(height: 92)
-            } else {
-                Text(hideBalance ? "$•••" : balance)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(hideBalance ? "$•••" : wallet.formattedBalance)
                     .font(.system(size: 76, weight: .bold, design: .rounded))
                     .minimumScaleFactor(0.6)
                     .lineLimit(1)
-            }
-
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
+                    .redacted(reason: wallet.isLoading ? .placeholder : [])
+                if let message = wallet.errorMessage {
+                    Text(message)
+                        .font(.footnote)
+                        .foregroundStyle(Theme.coral)
+                }
             }
 
             HStack(spacing: 12) {
-                Button(action: onAddMoney) {
+                Button { onMoneyAction(.add) } label: {
                     Text("Add money")
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(Color.white)
@@ -144,9 +160,10 @@ private struct BalanceCard: View {
                 }
                 .buttonStyle(.glassProminent)
                 .tint(Theme.accent)
-                Button(action: onWithdraw) {
+                Button { onMoneyAction(.withdraw) } label: {
                     Text("Withdraw")
                         .font(.title3.weight(.semibold))
+                        .foregroundStyle(Theme.text)
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .buttonStyle(.glass)
@@ -160,80 +177,21 @@ private struct BalanceCard: View {
     }
 }
 
-private enum BalanceAction: String, Identifiable {
-    case add
-    case withdraw
-
-    var id: String { rawValue }
-    var title: String { self == .add ? "Add money" : "Withdraw" }
-    var sign: Decimal { self == .add ? 1 : -1 }
-
-    func delta(for amount: Decimal) -> Decimal {
-        amount * sign
-    }
-}
-
-private struct BalanceAdjustmentView: View {
-    @Environment(\.dismiss) private var dismiss
-
-    let action: BalanceAction
-    let submit: (Decimal) async -> Bool
-
-    @State private var amountText = "50"
-    @State private var isSaving = false
-    @State private var errorMessage: String?
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section(action.title) {
-                    TextField("Amount", text: $amountText)
-                        .keyboardType(.decimalPad)
-
-                    if let errorMessage {
-                        Text(errorMessage)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    }
-
-                    Button(action.title) {
-                        Task { await save() }
-                    }
-                    .disabled(isSaving)
-                }
-            }
-            .navigationTitle("Demo balance")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
-        }
-    }
-
-    private func save() async {
-        guard let amount = Decimal(string: amountText), amount > 0 else {
-            errorMessage = "Enter a valid amount."
-            return
-        }
-
-        isSaving = true
-        errorMessage = nil
-        let succeeded = await submit(amount)
-        isSaving = false
-
-        if succeeded {
-            dismiss()
-        } else {
-            errorMessage = "The balance could not be updated."
-        }
-    }
-}
-
 // MARK: - Cards
 
 private struct SavingsCard: View {
+    let onOpen: () -> Void
+
     var body: some View {
+        Button(action: onOpen) {
+            content
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Theme.text)
+        .accessibilityHint("Shows savings details")
+    }
+
+    private var content: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Savings")
@@ -252,7 +210,41 @@ private struct SavingsCard: View {
                 .glassEffect(.regular, in: .circle)
         }
         .padding(24)
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardRadius))
+        .contentShape(.rect(cornerRadius: Theme.cardRadius))
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: Theme.cardRadius))
+    }
+}
+
+private struct FishingCard: View {
+    let onOpen: () -> Void
+
+    var body: some View {
+        Button(action: onOpen) {
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Text("Activity")
+                            .font(.title3.weight(.semibold))
+                        Image(systemName: "chevron.right")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    Text("Let's go fishing with your friends")
+                        .font(.system(size: 36, weight: .bold))
+                        .multilineTextAlignment(.leading)
+                }
+                .foregroundStyle(Theme.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(24)
+
+                BobberScene()
+                    .frame(height: 260)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius))
+            .contentShape(.rect(cornerRadius: Theme.cardRadius))
+        }
+        .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: Theme.cardRadius))
+        .accessibilityHint("Opens Activity")
     }
 }
 

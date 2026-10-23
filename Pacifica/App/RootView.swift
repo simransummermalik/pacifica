@@ -1,10 +1,9 @@
-import Foundation
 import SwiftUI
 
 enum RootTab: CaseIterable, Hashable {
     case bank
-    case pay
     case activity
+    case pay
 
     var systemImage: String {
         switch self {
@@ -23,71 +22,24 @@ enum RootTab: CaseIterable, Hashable {
     }
 }
 
+/// Native tab bar: on iOS 26+ this is the floating Liquid Glass bar at the bottom.
 struct RootView: View {
     let userID: UUID
-
-    @State private var selection: RootTab = .bank
-    @Namespace private var tabPill
+    @State private var selection: RootTab = .activity
 
     var body: some View {
-        Group {
-            switch selection {
-            case .bank: HomeView(userID: userID)
-            case .pay: PayView()
-            case .activity: ActivityPlaceholderView()
+        TabView(selection: $selection) {
+            Tab(RootTab.bank.title, systemImage: RootTab.bank.systemImage, value: .bank) {
+                HomeView(userID: userID, onOpenActivity: { selection = .activity })
+            }
+            Tab(RootTab.activity.title, systemImage: RootTab.activity.systemImage, value: .activity) {
+                ActivityView()
+            }
+            Tab(RootTab.pay.title, systemImage: RootTab.pay.systemImage, value: .pay) {
+                PayView()
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .safeAreaInset(edge: .bottom, spacing: 0) { tabBar }
-    }
-
-    // The Pacifica theme applies only on the Pay tab; other tabs keep system styling.
-    private var usesTheme: Bool { selection == .pay }
-    private var tabBarBackground: Color { usesTheme ? Theme.background : Color(.systemBackground) }
-    private var tabBarForeground: Color { usesTheme ? Theme.ink : .primary }
-
-    private var tabBar: some View {
-        HStack(spacing: 0) {
-            ForEach(RootTab.allCases, id: \.self) { tab in
-                tabButton(for: tab)
-            }
-        }
-        .padding(.horizontal, 32)
-        .padding(.vertical, 6)
-        .background(tabBarBackground.ignoresSafeArea(edges: .bottom))
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-    }
-
-    private func tabButton(for tab: RootTab) -> some View {
-        let isSelected = selection == tab
-        return Button {
-            withAnimation(.snappy(duration: 0.3)) { selection = tab }
-        } label: {
-            Image(systemName: tab.systemImage)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(isSelected ? tabBarBackground : tabBarForeground)
-                .frame(width: 64, height: 40)
-                .background {
-                    if isSelected {
-                        Capsule()
-                            .fill(tabBarForeground)
-                            .matchedGeometryEffect(id: "pill", in: tabPill)
-                    }
-                }
-                .frame(maxWidth: .infinity, minHeight: 48)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(tab.title)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-}
-
-private struct ActivityPlaceholderView: View {
-    var body: some View {
-        Text("Activity")
-            .font(.largeTitle.bold())
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .tint(Theme.text)
     }
 }
 

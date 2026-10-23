@@ -13,6 +13,7 @@ struct OceanConditionsDetailView: View {
 
             VStack(alignment: .leading, spacing: 16) {
                 header
+                    .padding(.horizontal, 16)
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
@@ -26,11 +27,13 @@ struct OceanConditionsDetailView: View {
                             unavailable
                         }
                     }
+                    .padding(.horizontal, 16)
                     .padding(.bottom, 16)
                 }
                 .scrollIndicators(.hidden)
+                // Let the glass cards' shadows spill past the scroll view's edge instead of being cut off.
+                .scrollClipDisabled()
             }
-            .padding(.horizontal, 16)
             .padding(.top, 24)
         }
     }
