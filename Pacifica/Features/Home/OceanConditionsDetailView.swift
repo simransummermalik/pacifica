@@ -129,15 +129,37 @@ struct OceanConditionsDetailView: View {
 private struct PriceChart: View {
     let prices: CategoryPrices
 
+    private struct SegmentedPoint: Identifiable {
+        let point: PricePoint
+        /// Percent change since the first point (the year-ago month), so the line ends at the headline's change.
+        let percent: Double
+        /// Increments after each missing month, so the line breaks instead of bridging the gap.
+        let segment: Int
+        var id: Int { point.id }
+    }
+
+    private static let percentStyle = FloatingPointFormatStyle<Double>.Percent.percent
+        .precision(.fractionLength(0...1))
+        .sign(strategy: .always(includingZero: false))
+        .locale(Locale(identifier: "en_US"))
+
     var body: some View {
-        Chart(prices.lastTwelveMonths) { point in
-            LineMark(
-                x: .value("Month", point.date, unit: .month),
-                y: .value("Index", point.doubleValue)
-            )
-            .foregroundStyle(Theme.accent)
-            .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
-            .interpolationMethod(.catmullRom)
+        Chart {
+            RuleMark(y: .value("Start", 0))
+                .foregroundStyle(Theme.textSecondary)
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+
+            ForEach(segmentedPoints) { item in
+                LineMark(
+                    x: .value("Month", item.point.date, unit: .month),
+                    y: .value("Change", item.percent),
+                    series: .value("Segment", item.segment)
+                )
+                .foregroundStyle(Theme.accent)
+                .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                // Monotone doesn't overshoot the monthly values the way catmull-rom can.
+                .interpolationMethod(.monotone)
+            }
         }
         .chartYScale(domain: yDomain)
         .chartXAxis {
@@ -146,29 +168,64 @@ private struct PriceChart: View {
                 AxisValueLabel(format: .dateTime.month(.abbreviated))
             }
         }
+        .chartYAxis {
+            AxisMarks(position: .leading) { value in
+                AxisGridLine()
+                AxisValueLabel {
+                    if let percent = value.as(Double.self) {
+                        Text((percent / 100).formatted(Self.percentStyle))
+                    }
+                }
+            }
+        }
         .frame(height: 200)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilitySummary)
     }
 
-    /// Trimmed to the data so the trend is visible.
+    private var segmentedPoints: [SegmentedPoint] {
+        guard let base = prices.chartPoints.first?.doubleValue, base != 0 else { return [] }
+        var segment = 0
+        var previous: PricePoint?
+        return prices.chartPoints.map { point in
+            if let previous, point.monthIndex - previous.monthIndex > 1 {
+                segment += 1
+            }
+            previous = point
+            return SegmentedPoint(point: point, percent: (point.doubleValue - base) / base * 100, segment: segment)
+        }
+    }
+
+    /// Trimmed to the data so the trend is visible; always includes the 0% starting line.
     private var yDomain: ClosedRange<Double> {
-        let values = prices.lastTwelveMonths.map(\.doubleValue)
-        guard let low = values.min(), let high = values.max() else { return 0...1 }
-        let padding = max((high - low) * 0.2, 0.5)
+        let values = segmentedPoints.map(\.percent) + [0]
+        guard let low = values.min(), let high = values.max() else { return -1...1 }
+        let padding = max((high - low) * 0.15, 0.5)
         return (low - padding)...(high + padding)
     }
 
     private var accessibilitySummary: String {
-        let points = prices.lastTwelveMonths
+        let points = prices.chartPoints
         guard let first = points.first, let last = points.last, points.count > 1 else {
             return "\(prices.category.name) price chart"
         }
-        let trend = last.value > first.value ? "rising" : last.value < first.value ? "falling" : "flat"
-        let format = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(1))
-        return "\(prices.category.name) prices over the last \(points.count) months, \(trend) from "
-            + "\(first.doubleValue.formatted(format)) in \(first.periodName) \(String(first.year)) to "
-            + "\(last.doubleValue.formatted(format)) in \(last.periodName) \(String(last.year))."
+        let ending = prices.percentChange > 0 ? "ending \(prices.percentText) percent higher than they started"
+            : prices.percentChange < 0 ? "ending \(prices.percentText) percent lower than they started"
+            : "ending about where they started"
+        var summary = "\(prices.category.name) prices from \(first.periodName) \(String(first.year)) "
+            + "to \(last.periodName) \(String(last.year)), \(ending)."
+
+        let published = Set(points.map(\.monthIndex))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "en_US")
+        let monthNames = calendar.monthSymbols
+        let missing = (first.monthIndex...last.monthIndex)
+            .filter { !published.contains($0) }
+            .map { "\(monthNames[$0 % 12]) \(String($0 / 12))" }
+        if !missing.isEmpty {
+            summary += " No data was published for \(missing.formatted(.list(type: .and)))."
+        }
+        return summary
     }
 }
 
