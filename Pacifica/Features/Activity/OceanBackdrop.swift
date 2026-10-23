@@ -7,8 +7,8 @@ enum OceanPalette {
     /// Bottom of the screen.
     static let deep = Color(hex: 0x072A5C)
     /// The sky at the very top of the page, and where it meets the water (light blue by day, navy at night).
-    static let skyTop = Color(light: Color(hex: 0xDDF1FF), dark: Color(hex: 0x0B2A4A))
-    static let skyMid = Color(light: Color(hex: 0x9ADBF7), dark: Color(hex: 0x0F4A7A))
+    static let skyTop = Color(light: Color(hex: 0xFAFDFF), dark: Color(hex: 0x0B2A4A))
+    static let skyMid = Color(light: Color(hex: 0xBFE7FA), dark: Color(hex: 0x0F4A7A))
 }
 
 /// One blue ocean behind the whole Activity page, from the status bar down to under the tab bar,

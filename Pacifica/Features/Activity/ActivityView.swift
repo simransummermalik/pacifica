@@ -41,14 +41,6 @@ struct ActivityView: View {
                     }
                 }
                 .scrollIndicators(.hidden)
-                .overlay(alignment: .top) {
-                    // Soft edge under the categories: the ocean blurs out as it scrolls up behind the header.
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                        .mask(LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom))
-                        .frame(height: 32)
-                        .allowsHitTesting(false)
-                }
 
                 YourFishCard(model: model)
                     .padding(.horizontal, 16)
