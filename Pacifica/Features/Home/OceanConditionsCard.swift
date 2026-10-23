@@ -13,10 +13,10 @@ struct OceanConditionsCard: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(viewModel.cardText ?? OceanConditionsViewModel.fallbackText)
-                        .font(.title3.weight(.semibold))
+                        .font(.headline)
                         .fixedSize(horizontal: false, vertical: true)
                     Text(OceanConditionsViewModel.source)
-                        .font(.subheadline)
+                        .font(.footnote)
                         .foregroundStyle(Theme.textSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
