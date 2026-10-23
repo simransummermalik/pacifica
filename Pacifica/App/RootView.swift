@@ -33,24 +33,13 @@ struct RootView: View {
                 HomeView(userID: userID, onOpenActivity: { selection = .activity })
             }
             Tab(RootTab.activity.title, systemImage: RootTab.activity.systemImage, value: .activity) {
-                ActivityPlaceholderView()
+                ActivityView()
             }
             Tab(RootTab.pay.title, systemImage: RootTab.pay.systemImage, value: .pay) {
                 PayView()
             }
         }
         .tint(Theme.text)
-    }
-}
-
-private struct ActivityPlaceholderView: View {
-    var body: some View {
-        ZStack {
-            AppBackground()
-            Text("Activity")
-                .font(.largeTitle.bold())
-                .foregroundStyle(Theme.text)
-        }
     }
 }
 
