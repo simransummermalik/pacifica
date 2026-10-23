@@ -68,3 +68,21 @@ struct VoteCounts: Equatable {
     var upvotes = 0
     var downvotes = 0
 }
+
+struct CircleStats: Equatable {
+    let points: Int
+    let level: Int
+    let progress: Double
+    let commentsWritten: Int
+    let votesGiven: Int
+    let votesReceived: Int
+
+    static let empty = CircleStats(
+        points: 0,
+        level: 1,
+        progress: 0,
+        commentsWritten: 0,
+        votesGiven: 0,
+        votesReceived: 0
+    )
+}

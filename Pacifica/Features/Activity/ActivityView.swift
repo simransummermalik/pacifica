@@ -19,27 +19,35 @@ struct ActivityView: View {
                         description: Text("Shared circle activity will appear here.")
                     )
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(viewModel.posts) { post in
-                                ActivityPostCard(
-                                    post: post,
-                                    profile: viewModel.profile(for: post),
-                                    counts: viewModel.counts(for: post),
-                                    selectedVote: viewModel.myVotes[post.id],
-                                    comments: viewModel.comments(for: post),
-                                    profiles: viewModel.profiles,
-                                    onVote: { type in
-                                        Task { await viewModel.toggleVote(postID: post.id, type: type) }
-                                    },
-                                    onComment: { body in
-                                        Task { await viewModel.addComment(postID: post.id, body: body) }
-                                    }
-                                )
-                            }
+                    List {
+                        CircleScoreCard(stats: viewModel.circleStats)
+                            .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+
+                        ForEach(viewModel.posts) { post in
+                            ActivityPostCard(
+                                post: post,
+                                profile: viewModel.profile(for: post),
+                                counts: viewModel.counts(for: post),
+                                selectedVote: viewModel.myVotes[post.id],
+                                comments: viewModel.comments(for: post),
+                                profiles: viewModel.profiles,
+                                onVote: { type in
+                                    Task { await viewModel.toggleVote(postID: post.id, type: type) }
+                                },
+                                onComment: { body in
+                                    Task { await viewModel.addComment(postID: post.id, body: body) }
+                                }
+                            )
+                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
                         }
-                        .padding(16)
                     }
+                    .listStyle(.plain)
+                    .scrollIndicators(.visible)
+                    .scrollDismissesKeyboard(.interactively)
                     .refreshable {
                         await viewModel.load()
                     }
@@ -60,6 +68,66 @@ struct ActivityView: View {
                 await viewModel.load()
             }
         }
+    }
+}
+
+private struct CircleScoreCard: View {
+    let stats: CircleStats
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("Circle score", systemImage: "sparkles")
+                    .font(.headline)
+                Spacer()
+                Text("Level \(stats.level)")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Theme.accent.opacity(0.16), in: Capsule())
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("\(stats.points)")
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                Text("points")
+                    .foregroundStyle(.secondary)
+            }
+
+            ProgressView(value: stats.progress)
+                .tint(Theme.accent)
+
+            Text("Circle challenge: leave 3 comments")
+                .font(.subheadline.weight(.medium))
+
+            HStack(spacing: 8) {
+                StatPill(text: "\(stats.commentsWritten)/3 comments", systemImage: "bubble.left.fill")
+                StatPill(text: "\(stats.votesReceived) reactions", systemImage: "hand.thumbsup.fill")
+            }
+
+            if stats.commentsWritten >= 3 {
+                Label("Comment champion unlocked", systemImage: "medal.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.accent)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 18))
+    }
+}
+
+private struct StatPill: View {
+    let text: String
+    let systemImage: String
+
+    var body: some View {
+        Label(text, systemImage: systemImage)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(.thinMaterial, in: Capsule())
     }
 }
 
@@ -123,6 +191,8 @@ private struct ActivityPostCard: View {
                 }
             }
 
+            Divider()
+
             ForEach(comments) { comment in
                 HStack(alignment: .top, spacing: 6) {
                     Text("@\(profiles[comment.userID]?.username ?? "user")")
@@ -166,6 +236,12 @@ private struct VoteButton: View {
         Button(action: action) {
             Label("\(count)", systemImage: systemImage)
                 .foregroundStyle(isSelected ? Theme.accent : Color.secondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    isSelected ? Theme.accent.opacity(0.14) : Color.secondary.opacity(0.08),
+                    in: Capsule()
+                )
         }
         .buttonStyle(.plain)
     }

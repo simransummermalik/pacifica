@@ -10,8 +10,11 @@ final class ActivityViewModel: ObservableObject {
     @Published private(set) var voteCounts: [UUID: VoteCounts] = [:]
     @Published private(set) var myVotes: [UUID: String] = [:]
     @Published private(set) var comments: [UUID: [ActivityComment]] = [:]
+    @Published private(set) var circleStats = CircleStats.empty
     @Published private(set) var isLoading = false
     @Published var errorMessage: String?
+
+    private var cachedReactions: [ActivityReaction] = []
 
     init(currentUserID: UUID) {
         self.currentUserID = currentUserID
@@ -33,8 +36,10 @@ final class ActivityViewModel: ObservableObject {
             self.profiles = Dictionary(
                 uniqueKeysWithValues: fetchedProfiles.map { ($0.id, $0) }
             )
+            cachedReactions = fetchedReactions
             rebuildVotes(fetchedReactions)
             rebuildComments(fetchedComments)
+            rebuildStats(reactions: fetchedReactions, comments: fetchedComments)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -50,7 +55,9 @@ final class ActivityViewModel: ObservableObject {
             }
 
             let reactions = try await service.fetchReactions()
+            cachedReactions = reactions
             rebuildVotes(reactions)
+            rebuildStats(reactions: reactions, comments: comments.values.flatMap { $0 })
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -60,7 +67,9 @@ final class ActivityViewModel: ObservableObject {
         do {
             let service = ActivityService()
             _ = try await service.addComment(postID: postID, body: body)
-            rebuildComments(try await service.fetchComments())
+            let fetchedComments = try await service.fetchComments()
+            rebuildComments(fetchedComments)
+            rebuildStats(reactions: cachedReactions, comments: fetchedComments)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -102,5 +111,23 @@ final class ActivityViewModel: ObservableObject {
 
     private func rebuildComments(_ comments: [ActivityComment]) {
         self.comments = Dictionary(grouping: comments, by: \.postID)
+    }
+
+    private func rebuildStats(reactions: [ActivityReaction], comments: [ActivityComment]) {
+        let myPostIDs = Set(posts.filter { $0.userID == currentUserID }.map(\.id))
+        let commentsWritten = comments.filter { $0.userID == currentUserID }.count
+        let votesGiven = reactions.filter { $0.userID == currentUserID }.count
+        let votesReceived = reactions.filter { myPostIDs.contains($0.postID) }.count
+        let points = (myPostIDs.count * 10) + (commentsWritten * 5) + (votesGiven * 2) + (votesReceived * 3)
+        let level = (points / 50) + 1
+
+        circleStats = CircleStats(
+            points: points,
+            level: level,
+            progress: Double(points % 50) / 50.0,
+            commentsWritten: commentsWritten,
+            votesGiven: votesGiven,
+            votesReceived: votesReceived
+        )
     }
 }
