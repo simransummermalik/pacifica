@@ -36,10 +36,12 @@ struct RootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaInset(edge: .bottom, spacing: 0) { tabBar }
-        .background(Theme.background.ignoresSafeArea())
-        .foregroundStyle(Theme.ink)
-        .tint(Theme.ink)
     }
+
+    // The Pacifica theme applies only on the Pay tab; other tabs keep system styling.
+    private var usesTheme: Bool { selection == .pay }
+    private var tabBarBackground: Color { usesTheme ? Theme.background : Color(.systemBackground) }
+    private var tabBarForeground: Color { usesTheme ? Theme.ink : .primary }
 
     private var tabBar: some View {
         HStack(spacing: 0) {
@@ -49,7 +51,7 @@ struct RootView: View {
         }
         .padding(.horizontal, 32)
         .padding(.vertical, 6)
-        .background(Theme.background.ignoresSafeArea(edges: .bottom))
+        .background(tabBarBackground.ignoresSafeArea(edges: .bottom))
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
@@ -60,12 +62,12 @@ struct RootView: View {
         } label: {
             Image(systemName: tab.systemImage)
                 .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(isSelected ? Theme.background : Theme.ink)
+                .foregroundStyle(isSelected ? tabBarBackground : tabBarForeground)
                 .frame(width: 64, height: 40)
                 .background {
                     if isSelected {
                         Capsule()
-                            .fill(Theme.ink)
+                            .fill(tabBarForeground)
                             .matchedGeometryEffect(id: "pill", in: tabPill)
                     }
                 }
