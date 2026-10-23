@@ -65,7 +65,9 @@ struct PricePoint: Codable, Sendable, Equatable, Identifiable {
     let periodName: String
     let value: Decimal
 
-    var id: Int { year * 100 + month }
+    /// Months since year 0, so consecutive months differ by 1.
+    var monthIndex: Int { year * 12 + month - 1 }
+    var id: Int { monthIndex }
 
     var date: Date {
         Calendar(identifier: .gregorian).date(from: DateComponents(year: year, month: month, day: 1)) ?? .distantPast
@@ -73,11 +75,14 @@ struct PricePoint: Codable, Sendable, Equatable, Identifiable {
 
     var doubleValue: Double { NSDecimalNumber(decimal: value).doubleValue }
 
-    /// Returns nil for the annual average ("M13") and unparseable points.
+    /// Returns nil for the annual average ("M13") and for months BLS didn't publish, which have the value "-".
     init?(_ point: BLSDataPoint) {
+        // Decimal(string:) parses "-" as 0, so require digits first.
         guard point.period.hasPrefix("M"),
               let month = Int(point.period.dropFirst()), (1...12).contains(month),
               let year = Int(point.year),
+              point.value.contains(where: \.isNumber),
+              point.value.allSatisfy({ $0.isNumber || $0 == "." }),
               let value = Decimal(string: point.value, locale: Locale(identifier: "en_US_POSIX"))
         else { return nil }
         self.year = year
@@ -99,18 +104,20 @@ struct CategoryPrices: Codable, Sendable, Equatable, Identifiable {
     let latest: PricePoint
     /// Signed year-over-year percent change, rounded to 1 decimal place.
     let percentChange: Decimal
-    /// Up to 12 monthly points, oldest first.
-    let lastTwelveMonths: [PricePoint]
+    /// The year-ago month through `latest`, oldest first, so the chart covers the same change as `percentChange`.
+    /// Months BLS didn't publish are missing.
+    let chartPoints: [PricePoint]
 
     var id: PriceCategory { category }
 
-    /// Returns nil if the points don't contain the latest month and the same month a year earlier.
+    /// Uses the newest month that has a value a year earlier, since BLS skipped some months (e.g. October 2025).
+    /// Returns nil if no month has one.
     init?(category: PriceCategory, points: [BLSDataPoint]) {
-        let monthly = points.compactMap(PricePoint.init).sorted { $0.id > $1.id }
-        guard let latest = monthly.first,
-              let yearAgo = monthly.first(where: { $0.year == latest.year - 1 && $0.month == latest.month }),
-              yearAgo.value != 0
-        else { return nil }
+        let monthly = points.compactMap(PricePoint.init).sorted { $0.monthIndex > $1.monthIndex }
+        let pair = monthly.lazy.compactMap { point in
+            monthly.first { $0.monthIndex == point.monthIndex - 12 && $0.value != 0 }.map { (latest: point, yearAgo: $0) }
+        }.first
+        guard let (latest, yearAgo) = pair else { return nil }
 
         var raw = (latest.value - yearAgo.value) / yearAgo.value * 100
         var rounded = Decimal()
@@ -119,7 +126,9 @@ struct CategoryPrices: Codable, Sendable, Equatable, Identifiable {
         self.category = category
         self.latest = latest
         self.percentChange = rounded
-        self.lastTwelveMonths = Array(monthly.prefix(12).reversed())
+        self.chartPoints = monthly
+            .filter { (yearAgo.monthIndex...latest.monthIndex).contains($0.monthIndex) }
+            .reversed()
     }
 }
 
@@ -192,10 +201,11 @@ struct MockBLSService: BLSServiceProtocol {
 
     /// Mix of rising and falling categories, latest month September 2026.
     static let mixed = MockBLSService(series: [
+        // Like the real data, every series but gas is missing October 2025.
         PriceCategory.groceries.seriesID: mockSeries(latest: 321.758, yearAgo: 313.912), // +2.5%
         PriceCategory.rent.seriesID: mockSeries(latest: 431.204, yearAgo: 414.221), // +4.1%
         PriceCategory.eatingOut.seriesID: mockSeries(latest: 382.517, yearAgo: 369.229), // +3.6%
-        PriceCategory.gas.seriesID: mockSeries(latest: 301.433, yearAgo: 321.354), // -6.2%
+        PriceCategory.gas.seriesID: mockSeries(latest: 301.433, yearAgo: 321.354, hasShutdownGap: false), // -6.2%
         PriceCategory.electricity.seriesID: mockSeries(latest: 297.840, yearAgo: 299.318), // -0.5%
         PriceCategory.everything.seriesID: mockSeries(latest: 330.108, yearAgo: 320.805), // +2.9%
     ])
@@ -203,8 +213,10 @@ struct MockBLSService: BLSServiceProtocol {
     static let failing = MockBLSService(series: [:], fails: true)
 
     /// 24 monthly points ending September 2026 (newest first, like the API), plus an "M13" annual average.
-    private static func mockSeries(latest: Double, yearAgo: Double) -> [BLSDataPoint] {
-        let monthNames = Calendar(identifier: .gregorian).monthSymbols
+    private static func mockSeries(latest: Double, yearAgo: Double, hasShutdownGap: Bool = true) -> [BLSDataPoint] {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "en_US")
+        let monthNames = calendar.monthSymbols
         let slope = (latest - yearAgo) / 12
         var points = (0..<24).map { monthsAgo in
             let index = 2026 * 12 + 8 - monthsAgo
@@ -213,7 +225,9 @@ struct MockBLSService: BLSServiceProtocol {
                 year: String(index / 12),
                 period: String(format: "M%02d", index % 12 + 1),
                 periodName: monthNames[index % 12],
-                value: String(format: "%.3f", latest - slope * Double(monthsAgo) + wiggle)
+                value: hasShutdownGap && index == 2025 * 12 + 9
+                    ? "-"
+                    : String(format: "%.3f", latest - slope * Double(monthsAgo) + wiggle)
             )
         }
         points.insert(BLSDataPoint(year: "2025", period: "M13", periodName: "Annual", value: "0"), at: 9)
