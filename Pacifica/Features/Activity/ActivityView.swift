@@ -6,28 +6,37 @@ struct ActivityView: View {
     let userID: UUID
     @State private var model = ReefViewModel()
     @State private var showTransactions = false
+    @State private var scrollPosition = ScrollPosition()
+    @State private var metrics = ScrollMetrics()
+    /// Height of everything above the ocean, and each fish's distance below the ocean's top edge.
+    @State private var headerHeight: CGFloat = 0
+    @State private var fishTops: [String: CGFloat] = [:]
+
+    private struct ScrollMetrics: Equatable {
+        var containerHeight: CGFloat = 0
+        var contentHeight: CGFloat = 0
+        var bottomInset: CGFloat = 0
+    }
 
     var body: some View {
         GeometryReader { geo in
-        ScrollViewReader { proxy in
-            // Scroll area and card are stacked (not overlaid), so the scroll area is exactly the visible
-            // space above the card and "centered" really means the middle of what you can see.
             VStack(spacing: 0) {
                 ScrollView {
                     VStack(spacing: 0) {
                         // Title, categories, podium and Transactions button all scroll away with the ocean.
                         VStack(spacing: 0) {
                             Color.clear.frame(height: geo.safeAreaInsets.top)
-                            PinnedHeader(model: model) { id in focus(on: id, using: proxy) }
-                            TopOfReefRow(model: model, onOpenTransactions: { showTransactions = true }) { id in focus(on: id, using: proxy) }
+                            PinnedHeader(model: model) { id in focus(on: id, topInset: geo.safeAreaInsets.top) }
+                            TopOfReefRow(model: model, onOpenTransactions: { showTransactions = true }) { id in focus(on: id, topInset: geo.safeAreaInsets.top) }
                                 .padding(.top, 6)
                                 .padding(.bottom, 40)
                                 .frame(maxWidth: .infinity)
                         }
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = $0 }
 
                         // The ocean is its own blue panel on the white page. The extra water at the bottom
                         // sits behind the "Your fish" card.
-                        OceanTrack(model: model) { id in focus(on: id, using: proxy) }
+                        OceanTrack(model: model, onTops: { fishTops = $0 }) { id in focus(on: id, topInset: geo.safeAreaInsets.top) }
                             .padding(.bottom, 150)
                             .background {
                                 UnevenRoundedRectangle(topLeadingRadius: 32, topTrailingRadius: 32)
@@ -38,6 +47,14 @@ struct ActivityView: View {
                     }
                 }
                 .scrollIndicators(.hidden)
+                .scrollPosition($scrollPosition)
+                .onScrollGeometryChange(for: ScrollMetrics.self) { g in
+                    ScrollMetrics(containerHeight: g.containerSize.height,
+                                  contentHeight: g.contentSize.height,
+                                  bottomInset: g.contentInsets.bottom)
+                } action: { _, new in
+                    metrics = new
+                }
                 .ignoresSafeArea(edges: [.top, .bottom])
                 // The card floats over the ocean: fish and labels scroll underneath it and blur through the glass.
                 .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -54,18 +71,25 @@ struct ActivityView: View {
             .task {
                 // Dive in: after the sky and podium show, swim down to your fish.
                 try? await Task.sleep(for: .seconds(1.2))
-                focus(on: "you", using: proxy)
+                focus(on: "you", topInset: geo.safeAreaInsets.top)
             }
-        }
         }
     }
 
-    private func focus(on id: String, using proxy: ScrollViewProxy) {
+    /// Selects a friend and scrolls so their fish sits in the middle of the visible water (between the
+    /// status bar and the "Your fish" card).
+    private func focus(on id: String, topInset: CGFloat) {
         withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) {
             model.selectedID = id
         }
+        guard let fishTop = fishTops[id], metrics.containerHeight > 0 else { return }
+        let fishCenter = headerHeight + fishTop + (id == "you" ? 55 : 50)
+        let visibleBottom = metrics.containerHeight - metrics.bottomInset
+        let visibleCenter = (topInset + visibleBottom) / 2
+        let maxOffset = max(0, metrics.contentHeight - visibleBottom)
+        let target = min(max(0, fishCenter - visibleCenter), maxOffset)
         withAnimation(.easeInOut(duration: 0.9)) {
-            proxy.scrollTo("fish-\(id)", anchor: .center)
+            scrollPosition.scrollTo(y: target)
         }
     }
 }
@@ -223,6 +247,7 @@ private struct TopOfReefRow: View {
 /// so fish aren't tied to one lane.
 private struct OceanTrack: View {
     var model: ReefViewModel
+    var onTops: ([String: CGFloat]) -> Void = { _ in }
     let onSelect: (String) -> Void
 
     private let oceanHeight: CGFloat = 1300
@@ -265,6 +290,8 @@ private struct OceanTrack: View {
         }
         .frame(height: oceanHeight)
         .animation(.spring(response: 1.0, dampingFraction: 0.78), value: model.category)
+        .onAppear { onTops(layout(width: 0).mapValues(\.top)) }
+        .onChange(of: model.category) { onTops(layout(width: 0).mapValues(\.top)) }
     }
 
     /// Hidden fish hang at mid-depth so their real depth never leaks.
