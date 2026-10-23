@@ -35,7 +35,9 @@ struct SpendingGoalService {
             goalType: goalType,
             targetAmount: targetAmount,
             startDate: startDate,
-            endDate: endDate
+            endDate: endDate,
+            merchant: merchantOrCategory,
+            weeklyLimit: targetAmount
         )
 
         return try await client
@@ -79,6 +81,8 @@ private struct SpendingGoalInsert: Encodable {
     let targetAmount: Decimal?
     let startDate: String
     let endDate: String
+    let merchant: String?
+    let weeklyLimit: Decimal?
 
     enum CodingKeys: String, CodingKey {
         case userID = "user_id"
@@ -88,5 +92,7 @@ private struct SpendingGoalInsert: Encodable {
         case targetAmount = "target_amount"
         case startDate = "start_date"
         case endDate = "end_date"
+        case merchant
+        case weeklyLimit = "weekly_limit"
     }
 }

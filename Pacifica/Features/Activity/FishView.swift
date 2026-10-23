@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// A friend's fish, drawn with the `fish.fill` SF Symbol, plus a name tag.
 /// The fish tilts nose-up near the surface and nose-down when deep, and wiggles gently.
@@ -10,6 +11,7 @@ struct FishView: View {
     var isHidden = false
     var facesRight = true
     var isSelected = false
+    var selfieImage: UIImage?
     /// 0 = surface, 1 = whole budget used. Drives the tilt.
     var depth: Double = 0.5
     var phase: Double = 0
@@ -33,29 +35,38 @@ struct FishView: View {
     }
 
     private var fish: some View {
-        Image(systemName: isHidden ? "fish" : "fish.fill")
-            .font(.system(size: symbolSize, weight: .regular))
-            .foregroundStyle(isYou ? Theme.yellow : Color.white)
-            .opacity(isHidden ? 0.6 : 1)
-            .rotationEffect(.degrees(tilt))
-            .scaleEffect(x: facesRight ? 1 : -1)
-            .overlay(alignment: .topTrailing) {
-                if isHidden {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: symbolSize * 0.3))
-                        .foregroundStyle(.white)
-                        .padding(5)
-                        .background(Theme.charcoal.opacity(0.7), in: Circle())
-                        .offset(x: 8, y: -8)
-                }
+        ZStack(alignment: .topTrailing) {
+            Image(systemName: isHidden ? "fish" : "fish.fill")
+                .font(.system(size: symbolSize, weight: .regular))
+                .foregroundStyle(isYou ? Theme.yellow : Color.white)
+                .opacity(isHidden ? 0.6 : 1)
+                .rotationEffect(.degrees(tilt))
+                .scaleEffect(x: facesRight ? 1 : -1)
+
+            if let selfieImage, !isHidden {
+                Image(uiImage: selfieImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: isYou ? 30 : 24, height: isYou ? 30 : 24)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(.white, lineWidth: 2))
+                    .offset(x: 10, y: -10)
+            } else if isHidden {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: symbolSize * 0.3))
+                    .foregroundStyle(.white)
+                    .padding(5)
+                    .background(Theme.charcoal.opacity(0.7), in: Circle())
+                    .offset(x: 8, y: -8)
             }
-            .rotationEffect(.degrees(swimming ? 4 : -4))
-            .offset(y: swimming ? 3 : -3)
-            .animation(
-                .easeInOut(duration: 1.6 + phase * 0.08).repeatForever(autoreverses: true),
-                value: swimming
-            )
-            .frame(width: symbolSize * 1.4, height: symbolSize * 1.1)
+        }
+        .rotationEffect(.degrees(swimming ? 4 : -4))
+        .offset(y: swimming ? 3 : -3)
+        .animation(
+            .easeInOut(duration: 1.6 + phase * 0.08).repeatForever(autoreverses: true),
+            value: swimming
+        )
+        .frame(width: symbolSize * 1.4, height: symbolSize * 1.1)
     }
 
     private var tag: some View {

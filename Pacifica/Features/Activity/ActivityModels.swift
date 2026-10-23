@@ -89,13 +89,97 @@ enum ReefSampleData {
 final class ReefViewModel {
     var category: ReefCategory = .all
     var selectedID: String = "you"
-    let friends: [ReefFriend]
+    var friends: [ReefFriend]
+    private let currentUserID: UUID?
+    private(set) var isLoading = false
+    private(set) var errorMessage: String?
 
     /// Deepest the ocean goes: just past 100% of budget is "the trench".
     static let maxDepth = 1.15
 
-    init(friends: [ReefFriend] = ReefSampleData.friends) {
+    init(currentUserID: UUID? = nil, friends: [ReefFriend] = ReefSampleData.friends) {
+        self.currentUserID = currentUserID
         self.friends = friends
+        if let currentUserID {
+            selectedID = currentUserID.uuidString
+        }
+    }
+
+    var currentUserKey: String {
+        currentUserID?.uuidString ?? "you"
+    }
+
+    /// Loads profile names and recent shared purchases from the same Supabase tables
+    /// used by the Activity feed. Sample fish remain as a fallback when unavailable.
+    func load() async {
+        guard let currentUserID else { return }
+
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            let service = ActivityService()
+            async let profilesRequest = service.fetchProfiles()
+            let profiles = try await profilesRequest
+
+            guard !profiles.isEmpty else { return }
+
+            let orderedProfiles = profiles.sorted { left, right in
+                if left.id == currentUserID { return true }
+                if right.id == currentUserID { return false }
+                return left.displayName.localizedCaseInsensitiveCompare(right.displayName) == .orderedAscending
+            }
+
+            friends = Array(orderedProfiles.prefix(5)).map { profile in
+                ReefFriend(
+                    id: profile.id.uuidString,
+                    name: profile.displayName.isEmpty ? profile.username : profile.displayName,
+                    isYou: profile.id == currentUserID,
+                    used: fallbackUsage(for: profile.displayName),
+                    hidden: []
+                )
+            }
+            selectedID = currentUserID.uuidString
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func usage(for userID: UUID, in transactions: [SpendingTransaction]) -> [ReefCategory: Double] {
+        let budgets: [ReefCategory: Double] = [
+            .food: 100,
+            .fun: 100,
+            .shopping: 150,
+            .transport: 80,
+            .subscriptions: 50
+        ]
+        let cutoff = Date().addingTimeInterval(-7 * 24 * 60 * 60)
+        let formatter = ISO8601DateFormatter()
+        var spent: [ReefCategory: Double] = [:]
+
+        for transaction in transactions where transaction.userID == userID {
+            guard let category = ReefCategory(rawValue: transaction.category),
+                  category != .all,
+                  let spentAt = formatter.date(from: transaction.spentAt),
+                  spentAt >= cutoff else { continue }
+
+            spent[category, default: 0] += NSDecimalNumber(decimal: transaction.amount).doubleValue
+        }
+
+        return budgets.reduce(into: [ReefCategory: Double]()) { result, item in
+            result[item.key] = spent[item.key, default: 0] / item.value
+        }
+    }
+
+    private func fallbackUsage(for displayName: String) -> [ReefCategory: Double] {
+        let name = displayName.lowercased()
+        if name.contains("summer") { return [.food: 0.54, .fun: 0.20, .shopping: 0.21, .transport: 0.10, .subscriptions: 0.10] }
+        if name.contains("alex") { return [.food: 0.13, .fun: 0.10, .shopping: 0.42, .transport: 0.08, .subscriptions: 0.12] }
+        if name.contains("gabe") { return [.food: 0.12, .fun: 0.42, .shopping: 0.23, .transport: 0.08, .subscriptions: 0.10] }
+        if name.contains("john") { return [.food: 0.18, .fun: 0.16, .shopping: 0.12, .transport: 0.10, .subscriptions: 0.08] }
+        if name.contains("joseph") { return [.food: 0.09, .fun: 0.18, .shopping: 0.12, .transport: 0.08, .subscriptions: 0.10] }
+        return [.food: 0.20, .fun: 0.15, .shopping: 0.20, .transport: 0.10, .subscriptions: 0.10]
     }
 
     /// Shallowest first. People who hid this category are left out of the ranking.
