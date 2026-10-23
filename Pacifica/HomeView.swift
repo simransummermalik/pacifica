@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     let userID: UUID
+    var onOpenActivity: () -> Void = {}
     @StateObject private var wallet = WalletViewModel()
     @State private var profile: Profile?
     @State private var hideBalance = false
@@ -23,7 +24,7 @@ struct HomeView: View {
                         OceanConditionsCard(viewModel: oceanConditions)
                         BalanceCard(hideBalance: $hideBalance, wallet: wallet, onMoneyAction: { moneySheet = $0 }, onOpen: { showCash = true })
                         SavingsCard(onOpen: { showSavings = true })
-                        FishingCard()
+                        FishingCard(onOpen: onOpenActivity)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -207,23 +208,35 @@ private struct SavingsCard: View {
 }
 
 private struct FishingCard: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Friends")
-                    .font(.title3.weight(.semibold))
-                Text("Let's go fishing with your friends")
-                    .font(.system(size: 36, weight: .bold))
-            }
-            .foregroundStyle(Theme.text)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(24)
+    let onOpen: () -> Void
 
-            BobberScene()
-                .frame(height: 260)
+    var body: some View {
+        Button(action: onOpen) {
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Text("Activity")
+                            .font(.title3.weight(.semibold))
+                        Image(systemName: "chevron.right")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    Text("Let's go fishing with your friends")
+                        .font(.system(size: 36, weight: .bold))
+                        .multilineTextAlignment(.leading)
+                }
+                .foregroundStyle(Theme.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(24)
+
+                BobberScene()
+                    .frame(height: 260)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius))
+            .contentShape(.rect(cornerRadius: Theme.cardRadius))
         }
-        .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius))
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardRadius))
+        .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: Theme.cardRadius))
+        .accessibilityHint("Opens Activity")
     }
 }
 
