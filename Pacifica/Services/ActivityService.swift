@@ -19,6 +19,7 @@ struct ActivityService {
         try await client
             .from("profiles")
             .select("id, display_name, username")
+            .order("username", ascending: true)
             .execute()
             .value
     }

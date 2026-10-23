@@ -4,6 +4,7 @@ import Supabase
 struct SelfieService {
     private let client = SupabaseClientProvider.shared
     private let bucket = "daily-selfies"
+    private let selfieCooldown: TimeInterval = 5 * 60 * 60
 
     func fetchLatestSelfie(userID: UUID) async throws -> DailySelfie? {
         let selfies: [DailySelfie] = try await client
@@ -27,7 +28,7 @@ struct SelfieService {
         }
 
         let path = "\(userID.uuidString)/\(UUID().uuidString).jpg"
-        let expiresAt = Date().addingTimeInterval(24 * 60 * 60)
+        let expiresAt = Date().addingTimeInterval(selfieCooldown)
         let payload = DailySelfieInsert(
             userID: userID,
             storagePath: path,
@@ -40,7 +41,7 @@ struct SelfieService {
                 path,
                 data: imageData,
                 options: FileOptions(
-                    cacheControl: "86400",
+                    cacheControl: "18000",
                     contentType: "image/jpeg",
                     upsert: false
                 )

@@ -10,7 +10,7 @@ struct DailySelfieView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Daily selfie")
+            Text("Selfie check-in")
                 .font(.title3.weight(.semibold))
 
             if let image = viewModel.image {

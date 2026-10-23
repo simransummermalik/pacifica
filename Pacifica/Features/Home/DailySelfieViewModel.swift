@@ -25,7 +25,7 @@ final class DailySelfieViewModel: ObservableObject {
         if let expiryDate, expiryDate > Date() {
             return "Your selfie is live until \(expiryDate.formatted(date: .omitted, time: .shortened))."
         }
-        return "Take an optional selfie for your fish."
+        return "Take a selfie check-in. You can post another one in 5 hours."
     }
 
     func load() async {

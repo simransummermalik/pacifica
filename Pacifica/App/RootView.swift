@@ -2,12 +2,14 @@ import Foundation
 import SwiftUI
 
 enum RootTab: CaseIterable, Hashable {
+    case home
     case bank
     case pay
     case activity
 
     var systemImage: String {
         switch self {
+        case .home: "house.fill"
         case .bank: "building.columns"
         case .pay: "dollarsign"
         case .activity: "clock"
@@ -16,6 +18,7 @@ enum RootTab: CaseIterable, Hashable {
 
     var title: String {
         switch self {
+        case .home: "Home"
         case .bank: "Bank"
         case .pay: "Pay"
         case .activity: "Activity"
@@ -26,12 +29,13 @@ enum RootTab: CaseIterable, Hashable {
 struct RootView: View {
     let userID: UUID
 
-    @State private var selection: RootTab = .bank
+    @State private var selection: RootTab = .home
     @Namespace private var tabPill
 
     var body: some View {
         Group {
             switch selection {
+            case .home: FishHomeView(userID: userID)
             case .bank: HomeView(userID: userID)
             case .pay: PayView()
             case .activity: ActivityView(userID: userID)
