@@ -33,7 +33,7 @@ struct HomeView: View {
             QRCodeView(name: displayName, handle: handle)
         }
         .sheet(item: $moneySheet) { mode in
-            MoneySheetView(mode: mode, balance: wallet.balance)
+            MoneySheetView(mode: mode, wallet: wallet)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }

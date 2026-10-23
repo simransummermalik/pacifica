@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Sheet for moving money in or out of the cash balance. UI only for now: there is no
-/// deposit/withdraw backend yet, so confirming just closes the sheet.
+/// Sheet for moving money in or out of the cash balance. Confirming adjusts the demo balance
+/// in Supabase through `WalletViewModel.adjustBalance`.
 struct MoneySheetView: View {
     enum Mode: Identifiable {
         case add
@@ -14,16 +14,18 @@ struct MoneySheetView: View {
     }
 
     let mode: Mode
-    /// Current cash balance, used to limit withdrawals.
-    let balance: Decimal
+    @ObservedObject var wallet: WalletViewModel
 
     @Environment(\.dismiss) private var dismiss
     @State private var entry = PayViewModel()
+    @State private var isSubmitting = false
+
+    private var balance: Decimal { wallet.balance }
 
     private let quickAmounts = [25, 50, 100]
 
     private var exceedsBalance: Bool { mode == .withdraw && entry.amount > balance }
-    private var canConfirm: Bool { !entry.isZero && !exceedsBalance }
+    private var canConfirm: Bool { !entry.isZero && !exceedsBalance && !isSubmitting }
 
     private var balanceText: String {
         balance.formatted(.currency(code: "USD").locale(Locale(identifier: "en_US")))
@@ -86,7 +88,12 @@ struct MoneySheetView: View {
                 .accessibilityLabel("Amount")
                 .accessibilityValue(entry.accessibilityAmount)
 
-            if exceedsBalance {
+            if let message = wallet.errorMessage {
+                Text(message)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Theme.coral)
+                    .multilineTextAlignment(.center)
+            } else if exceedsBalance {
                 Text("More than your balance")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.coral)
@@ -154,7 +161,7 @@ struct MoneySheetView: View {
 
     private var confirmButton: some View {
         Button {
-            dismiss()
+            submit()
         } label: {
             Text(entry.isZero ? mode.title : "\(mode.confirmVerb) \(entry.displayText)")
                 .font(.headline)
@@ -169,6 +176,16 @@ struct MoneySheetView: View {
     }
 
     // MARK: - Helpers
+
+    private func submit() {
+        let delta = mode == .add ? entry.amount : -entry.amount
+        isSubmitting = true
+        Task {
+            let succeeded = await wallet.adjustBalance(delta: delta)
+            isSubmitting = false
+            if succeeded { dismiss() }
+        }
+    }
 
     /// Replaces the entry with `text` (digits and at most one decimal point) by backspacing, then typing.
     private func setAmount(_ text: String) {
@@ -194,9 +211,9 @@ struct MoneySheetView: View {
 }
 
 #Preview("Add") {
-    MoneySheetView(mode: .add, balance: 120)
+    MoneySheetView(mode: .add, wallet: WalletViewModel())
 }
 
 #Preview("Withdraw") {
-    MoneySheetView(mode: .withdraw, balance: 120)
+    MoneySheetView(mode: .withdraw, wallet: WalletViewModel())
 }
