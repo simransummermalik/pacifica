@@ -12,15 +12,15 @@ struct OceanConditionsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(viewModel.text ?? OceanConditionsViewModel.fallbackText)
-                .font(.headline)
+                .font(.title3.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
             Text(Self.source)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.subheadline)
+                .foregroundStyle(Theme.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
-        .background(Theme.translucentFill, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardRadius))
         .redacted(reason: viewModel.text == nil ? .placeholder : [])
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
