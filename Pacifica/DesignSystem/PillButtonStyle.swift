@@ -4,12 +4,13 @@ import SwiftUI
 struct PillButtonStyle: ButtonStyle {
     let fill: Color
     let foreground: Color
+    var font: Font = .system(.headline, design: .rounded)
 
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(.headline, design: .rounded))
+            .font(font)
             .foregroundStyle(foreground)
             .frame(maxWidth: .infinity, minHeight: 52)
             .background(fill, in: Capsule())
