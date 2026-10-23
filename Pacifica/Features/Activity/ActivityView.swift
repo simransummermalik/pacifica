@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// The Reef tab: a tall ocean you scroll down. Each friend swims in their own lane, and the deeper their
 /// fish, the more of their own budget they've used. Shallowest is first. Only percentages are shown.
@@ -6,6 +7,12 @@ struct ActivityView: View {
     let userID: UUID
     @State private var model = ReefViewModel()
     @State private var showTransactions = false
+    @State private var showGoals = false
+    @State private var showChallenges = false
+    @State private var showSelfieCheckIn = false
+    @State private var hasPromptedForSelfie = false
+    @StateObject private var dailySelfie: DailySelfieViewModel
+    @Environment(\.scenePhase) private var scenePhase
     @State private var scrollPosition = ScrollPosition()
     @State private var metrics = ScrollMetrics()
     /// Height of everything above the ocean, and each fish's distance below the ocean's top edge.
@@ -18,6 +25,11 @@ struct ActivityView: View {
         var bottomInset: CGFloat = 0
     }
 
+    init(userID: UUID) {
+        self.userID = userID
+        _dailySelfie = StateObject(wrappedValue: DailySelfieViewModel(userID: userID))
+    }
+
     var body: some View {
         GeometryReader { geo in
             VStack(spacing: 0) {
@@ -27,7 +39,13 @@ struct ActivityView: View {
                         VStack(spacing: 0) {
                             Color.clear.frame(height: geo.safeAreaInsets.top)
                             PinnedHeader(model: model) { id in focus(on: id, topInset: geo.safeAreaInsets.top) }
-                            TopOfReefRow(model: model, onOpenTransactions: { showTransactions = true }) { id in focus(on: id, topInset: geo.safeAreaInsets.top) }
+                            TopOfReefRow(
+                                model: model,
+                                onOpenTransactions: { showTransactions = true },
+                                onOpenGoals: { showGoals = true },
+                                onOpenChallenges: { showChallenges = true },
+                                onOpenSelfie: { showSelfieCheckIn = true }
+                            ) { id in focus(on: id, topInset: geo.safeAreaInsets.top) }
                                 .padding(.top, 6)
                                 .padding(.bottom, 40)
                                 .frame(maxWidth: .infinity)
@@ -36,7 +54,7 @@ struct ActivityView: View {
 
                         // The ocean is its own blue panel on the white page. The extra water at the bottom
                         // sits behind the "Your fish" card.
-                        OceanTrack(model: model, onTops: { fishTops = $0 }) { id in focus(on: id, topInset: geo.safeAreaInsets.top) }
+                        OceanTrack(model: model, userID: userID, selfiesByUserID: dailySelfie.imagesByUserID, onTops: { fishTops = $0 }) { id in focus(on: id, topInset: geo.safeAreaInsets.top) }
                             .padding(.bottom, 150)
                             .background {
                                 UnevenRoundedRectangle(topLeadingRadius: 32, topTrailingRadius: 32)
@@ -67,6 +85,24 @@ struct ActivityView: View {
             .background(AppBackground())
             .sheet(isPresented: $showTransactions) {
                 TransactionsView(userID: userID)
+            }
+            .sheet(isPresented: $showGoals) {
+                GoalsView(userID: userID)
+            }
+            .sheet(isPresented: $showChallenges) {
+                ChallengesView(userID: userID)
+            }
+            .sheet(isPresented: $showSelfieCheckIn) {
+                SelfieCheckInView(viewModel: dailySelfie)
+            }
+            .onAppear {
+                hasPromptedForSelfie = false
+                Task { await refreshSelfiePrompt() }
+            }
+            .onDisappear { hasPromptedForSelfie = false }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                Task { await refreshSelfiePrompt() }
             }
             .task {
                 // Dive in: after the sky and podium show, swim down to your fish.
@@ -176,6 +212,9 @@ private struct CategoryChips: View {
 private struct TopOfReefRow: View {
     var model: ReefViewModel
     let onOpenTransactions: () -> Void
+    let onOpenGoals: () -> Void
+    let onOpenChallenges: () -> Void
+    let onOpenSelfie: () -> Void
     let onSelect: (String) -> Void
 
     var body: some View {
@@ -199,17 +238,29 @@ private struct TopOfReefRow: View {
             }
             .scrollIndicators(.hidden)
 
-            Button(action: onOpenTransactions) {
-                Label("Transactions", systemImage: "list.bullet.rectangle")
-                    .font(.subheadline.weight(.semibold))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .glassEffect(.regular.interactive(), in: .capsule)
+            ScrollView(.horizontal) {
+                HStack(spacing: 8) {
+                    actionButton("Transactions", systemImage: "list.bullet.rectangle", action: onOpenTransactions)
+                    actionButton("Goals", systemImage: "target", action: onOpenGoals)
+                    actionButton("Challenges", systemImage: "trophy", action: onOpenChallenges)
+                    actionButton("Selfie", systemImage: "camera", action: onOpenSelfie)
+                }
+                .padding(.horizontal, 20)
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 20)
+            .scrollIndicators(.hidden)
         }
         .foregroundStyle(Theme.text)
+    }
+
+    private func actionButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .glassEffect(.regular.interactive(), in: .capsule)
+        }
+        .buttonStyle(.plain)
     }
 
     private func entry(_ ranked: RankedFriend) -> some View {
@@ -247,6 +298,8 @@ private struct TopOfReefRow: View {
 /// so fish aren't tied to one lane.
 private struct OceanTrack: View {
     var model: ReefViewModel
+    let userID: UUID
+    var selfiesByUserID: [UUID: UIImage]
     var onTops: ([String: CGFloat]) -> Void = { _ in }
     let onSelect: (String) -> Void
 
@@ -325,6 +378,7 @@ private struct OceanTrack: View {
         let isHidden = friend.depth(in: model.category) == nil
         let detail = isHidden ? "hidden" : "\(Int((place.depth * 100).rounded()))%"
         let nodeWidth: CGFloat = friend.isYou ? 110 : 92
+        let selfieImage = friend.isYou ? selfiesByUserID[userID] : UUID(uuidString: friend.id).flatMap { selfiesByUserID[$0] }
 
         return Button {
             onSelect(friend.id)
@@ -333,6 +387,7 @@ private struct OceanTrack: View {
                      isYou: friend.isYou, isHidden: isHidden,
                      facesRight: place.facesRight,
                      isSelected: model.selectedID == friend.id,
+                     selfieImage: selfieImage,
                      depth: place.depth, phase: phases[friend.id] ?? 0)
                 .frame(width: nodeWidth)
         }
@@ -452,4 +507,38 @@ private struct DepthBar: View {
 
 #Preview {
     ActivityView(userID: UUID())
+}
+
+private extension ActivityView {
+    func refreshSelfiePrompt() async {
+        await dailySelfie.load()
+        guard dailySelfie.isEligible, !hasPromptedForSelfie else { return }
+        hasPromptedForSelfie = true
+        showSelfieCheckIn = true
+    }
+}
+
+private struct SelfieCheckInView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var viewModel: DailySelfieViewModel
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                DailySelfieView(viewModel: viewModel)
+                    .padding(16)
+            }
+            .navigationTitle("Selfie check-in")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Later") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                        .disabled(viewModel.image == nil || viewModel.isSaving)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
 }
