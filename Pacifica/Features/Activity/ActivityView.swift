@@ -15,11 +15,26 @@ struct ActivityView: View {
                 ScrollView {
                     VStack(spacing: 0) {
                         // Title, categories, podium and Transactions button all scroll away with the ocean.
-                        PinnedHeader(model: model) { id in focus(on: id, using: proxy) }
-                        TopOfReefRow(model: model, onOpenTransactions: { showTransactions = true }) { id in focus(on: id, using: proxy) }
-                            .padding(.top, 6)
-                            .padding(.bottom, 26)
-                            .frame(maxWidth: .infinity)
+                        VStack(spacing: 0) {
+                            PinnedHeader(model: model) { id in focus(on: id, using: proxy) }
+                            TopOfReefRow(model: model, onOpenTransactions: { showTransactions = true }) { id in focus(on: id, using: proxy) }
+                                .padding(.top, 6)
+                                .padding(.bottom, 40)
+                                .frame(maxWidth: .infinity)
+                        }
+                        // Sky: white at the very top, fading into the water. It scrolls away with the header.
+                        .background {
+                            LinearGradient(
+                                stops: [
+                                    .init(color: Color(light: .white, dark: Color(hex: 0x0B2A4A)), location: 0),
+                                    .init(color: Color(light: .white, dark: Color(hex: 0x0B2A4A)).opacity(0.85), location: 0.35),
+                                    .init(color: Color(light: .white, dark: Color(hex: 0x0B2A4A)).opacity(0), location: 1),
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                            .ignoresSafeArea(edges: .top)
+                        }
 
                         OceanTrack(model: model) { id in focus(on: id, using: proxy) }
                     }
