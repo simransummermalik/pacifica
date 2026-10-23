@@ -4,7 +4,7 @@ import SwiftUI
 struct PacificaApp: App {
     var body: some Scene {
         WindowGroup {
-            HomeView()
+            RootView()
         }
     }
 }
