@@ -15,20 +15,11 @@ struct ActivityView: View {
                 ScrollView {
                     VStack(spacing: 0) {
                         // Title, categories, podium and Transactions button all scroll away with the ocean.
-                        VStack(spacing: 0) {
-                            PinnedHeader(model: model) { id in focus(on: id, using: proxy) }
-                            TopOfReefRow(model: model, onOpenTransactions: { showTransactions = true }) { id in focus(on: id, using: proxy) }
-                                .padding(.top, 6)
-                                .padding(.bottom, 22)
-                                .frame(maxWidth: .infinity)
-                        }
-                        // White (charcoal in dark mode) top section that scrolls away to reveal the ocean.
-                        .background {
-                            UnevenRoundedRectangle(bottomLeadingRadius: 32, bottomTrailingRadius: 32)
-                                .fill(Theme.surface)
-                                .ignoresSafeArea(edges: .top)
-                        }
-                        .padding(.bottom, 12)
+                        PinnedHeader(model: model) { id in focus(on: id, using: proxy) }
+                        TopOfReefRow(model: model, onOpenTransactions: { showTransactions = true }) { id in focus(on: id, using: proxy) }
+                            .padding(.top, 6)
+                            .padding(.bottom, 26)
+                            .frame(maxWidth: .infinity)
 
                         OceanTrack(model: model) { id in focus(on: id, using: proxy) }
                     }
@@ -76,7 +67,7 @@ private struct PinnedHeader: View {
                     .font(.title.bold())
                 Text("resets Monday")
                     .font(.subheadline)
-                    .foregroundStyle(Theme.text.opacity(0.65))
+                    .foregroundStyle(OceanPalette.ink.opacity(0.65))
                 Spacer()
                 Button {
                     onFocusYou("you")
@@ -93,7 +84,7 @@ private struct PinnedHeader: View {
 
             CategoryChips(model: model, onChange: { onFocusYou(model.selectedID) })
         }
-        .foregroundStyle(Theme.text)
+        .foregroundStyle(OceanPalette.ink)
         .padding(.top, 6)
         .padding(.bottom, 10)
     }
@@ -127,7 +118,7 @@ private struct CategoryChips: View {
         } label: {
             Label(category.title, systemImage: category.systemImage)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(isSelected ? Color.white : Theme.text)
+                .foregroundStyle(isSelected ? Color.white : OceanPalette.ink)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
                 .glassEffect(isSelected ? .regular.tint(Theme.accent).interactive() : .regular.interactive(),
@@ -177,7 +168,7 @@ private struct TopOfReefRow: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 20)
         }
-        .foregroundStyle(Theme.text)
+        .foregroundStyle(OceanPalette.ink)
     }
 
     private func entry(_ ranked: RankedFriend) -> some View {
@@ -188,7 +179,7 @@ private struct TopOfReefRow: View {
             VStack(spacing: 6) {
                 Text(ranked.friend.initials)
                     .font(.system(size: isFirst ? 18 : 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(Theme.text)
+                    .foregroundStyle(OceanPalette.ink)
                     .frame(width: isFirst ? 62 : 52, height: isFirst ? 62 : 52)
                     .glassEffect(ranked.friend.isYou ? .regular.tint(Theme.yellow) : .regular, in: .circle)
                     .overlay(alignment: .topTrailing) {
