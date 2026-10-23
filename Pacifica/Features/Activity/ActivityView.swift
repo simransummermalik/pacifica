@@ -1,24 +1,56 @@
 import SwiftUI
 
-/// The Activity tab: an ocean where each friend is a fish. The deeper your fish, the more of your own
-/// budget you've used. Shallowest is first. Only percentages are shown, never dollar amounts.
+/// The Activity tab: a tall ocean you scroll down. Each friend swims in their own lane, and the deeper their
+/// fish, the more of their own budget they've used. Shallowest is first. Only percentages are shown.
 struct ActivityView: View {
     @State private var model = ReefViewModel()
 
     var body: some View {
-        VStack(spacing: 0) {
-            SkyHeader(model: model)
-            OceanField(model: model)
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 0) {
+                    TopOfReefRow(model: model) { id in focus(on: id, using: proxy) }
+                        .padding(.top, 6)
+                        .padding(.bottom, 22)
+
+                    OceanTrack(model: model) { id in focus(on: id, using: proxy) }
+                }
+            }
+            .scrollIndicators(.hidden)
+            .background(alignment: .top) {
+                // Sky behind the top of the content; scrolls away with it.
+                SkyGradient()
+                    .frame(height: 360)
+                    .ignoresSafeArea(edges: .top)
+            }
+            .background(Color(hex: 0x082A33))
+            .safeAreaInset(edge: .top, spacing: 0) {
+                PinnedHeader(model: model) { id in focus(on: id, using: proxy) }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                YourFishCard(model: model)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 4)
+            }
+            .task {
+                // Dive in: after the sky and podium show, swim down to your fish.
+                try? await Task.sleep(for: .seconds(1.2))
+                focus(on: "you", using: proxy)
+            }
         }
-        .background(alignment: .top) {
-            SkyGradient()
-                .frame(height: 420)
-                .ignoresSafeArea(edges: .top)
+    }
+
+    private func focus(on id: String, using proxy: ScrollViewProxy) {
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) {
+            model.selectedID = id
+        }
+        withAnimation(.easeInOut(duration: 0.9)) {
+            proxy.scrollTo("fish-\(id)", anchor: .center)
         }
     }
 }
 
-// MARK: - Sky
+// MARK: - Sky and pinned header
 
 private struct SkyGradient: View {
     var body: some View {
@@ -33,31 +65,49 @@ private struct SkyGradient: View {
     }
 }
 
-private struct SkyHeader: View {
+/// Title and category chips stay on screen while you dive, so you can switch category from anywhere in the ocean.
+private struct PinnedHeader: View {
     @Bindable var model: ReefViewModel
+    let onFocusYou: (String) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
                 Text("Activity")
-                    .font(.largeTitle.bold())
-                Text("Your reef · resets every Monday")
+                    .font(.title.bold())
+                Text("resets Monday")
                     .font(.subheadline)
-                    .foregroundStyle(Theme.textSecondary)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    onFocusYou("you")
+                } label: {
+                    Label("Find me", systemImage: "scope")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .glassEffect(.regular.interactive(), in: .capsule)
+                }
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 16)
 
-            CategoryChips(model: model)
-            TopOfReefRow(model: model)
+            CategoryChips(model: model, onChange: { onFocusYou(model.selectedID) })
         }
-        .foregroundStyle(Theme.text)
-        .padding(.top, 8)
-        .padding(.bottom, 22)
+        .padding(.top, 6)
+        .padding(.bottom, 10)
+        .background {
+            Rectangle()
+                .fill(.regularMaterial)
+                .mask(LinearGradient(colors: [.black, .black, .clear], startPoint: .top, endPoint: .bottom))
+                .ignoresSafeArea(edges: .top)
+        }
     }
 }
 
 private struct CategoryChips: View {
     @Bindable var model: ReefViewModel
+    let onChange: () -> Void
 
     var body: some View {
         ScrollView(.horizontal) {
@@ -67,7 +117,7 @@ private struct CategoryChips: View {
                         chip(category)
                     }
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 16)
             }
         }
         .scrollIndicators(.hidden)
@@ -79,12 +129,13 @@ private struct CategoryChips: View {
             withAnimation(.spring(response: 0.9, dampingFraction: 0.78)) {
                 model.category = category
             }
+            onChange()
         } label: {
             Label(category.title, systemImage: category.systemImage)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(isSelected ? Color.white : Theme.text)
                 .padding(.horizontal, 14)
-                .padding(.vertical, 10)
+                .padding(.vertical, 9)
                 .glassEffect(isSelected ? .regular.tint(Theme.accent).interactive() : .regular.interactive(),
                              in: .capsule)
         }
@@ -93,9 +144,12 @@ private struct CategoryChips: View {
     }
 }
 
-/// Podium of the ranking: shallowest first.
+// MARK: - Podium
+
+/// Ranking, shallowest first. Tap someone to swim down to their fish.
 private struct TopOfReefRow: View {
     var model: ReefViewModel
+    let onSelect: (String) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -118,14 +172,13 @@ private struct TopOfReefRow: View {
             }
             .scrollIndicators(.hidden)
         }
+        .foregroundStyle(Theme.text)
     }
 
     private func entry(_ ranked: RankedFriend) -> some View {
         let isFirst = ranked.rank == 1
         return Button {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                model.selectedID = ranked.friend.id
-            }
+            onSelect(ranked.friend.id)
         } label: {
             VStack(spacing: 6) {
                 Text(ranked.friend.initials)
@@ -146,156 +199,145 @@ private struct TopOfReefRow: View {
                 Text(ranked.friend.isYou ? "You" : ranked.friend.name)
                     .font(.caption.weight(.semibold))
             }
-            .foregroundStyle(Theme.text)
         }
         .buttonStyle(.plain)
-        .transition(.scale.combined(with: .opacity))
     }
 }
 
-// MARK: - Ocean
+// MARK: - Ocean track
 
-private struct OceanField: View {
+/// The tall ocean. One lane per friend; a fishing line runs from the surface down to the fish, so the line's
+/// length is the depth, the way a Stompers track fills with steps.
+private struct OceanTrack: View {
     var model: ReefViewModel
+    let onSelect: (String) -> Void
 
-    private let swimPhases: [String: Double] = [
-        "you": 0.0, "summer": 1.4, "raey": 2.6, "mario": 3.9, "alex": 5.1,
-    ]
+    private let oceanHeight: CGFloat = 1300
+    private let surfaceMargin: CGFloat = 54
+    private let rulerWidth: CGFloat = 50
+    private let trenchHeight: CGFloat = 260
 
-    /// Left and right swimming lanes; fish alternate between them from the surface down.
-    private let laneX: [CGFloat] = [0.33, 0.72]
-    /// Fish in the same lane never get closer than this vertically.
-    private let minGap: CGFloat = 74
-    private let youGap: CGFloat = 122
+    /// Height of the part of the ocean that maps depth 0...maxDepth.
+    private var trackHeight: CGFloat { oceanHeight - surfaceMargin - trenchHeight }
 
-    private struct Placement {
-        let x: CGFloat
-        let y: CGFloat
-        let facesRight: Bool
+    private func yTop(for depth: Double) -> CGFloat {
+        surfaceMargin + CGFloat(min(max(depth, 0), ReefViewModel.maxDepth) / ReefViewModel.maxDepth) * trackHeight
     }
 
-    var body: some View {
-        GeometryReader { geo in
-            let topInset: CGFloat = 40
-            let bottomReserve: CGFloat = 150
-            let usableHeight = max(geo.size.height - topInset - bottomReserve, 1)
-            let placements = layout(in: geo.size, top: topInset, usable: usableHeight)
-
-            ZStack(alignment: .topLeading) {
-                DepthGauge(top: topInset, height: usableHeight, width: geo.size.width)
-
-                ForEach(model.friends) { friend in
-                    if let place = placements[friend.id] {
-                        fish(for: friend, place: place)
-                    }
-                }
-
-                YourFishCard(model: model)
-                    .padding(.horizontal, 16)
-                    .frame(width: geo.size.width, height: geo.size.height, alignment: .bottom)
-                    .padding(.bottom, 4)
-            }
-        }
-        .background {
-            OceanBackdrop()
-                .ignoresSafeArea(edges: .bottom)
-        }
-    }
-
-    /// Depth sets each fish's height. Lanes plus a minimum gap keep neighbours from overlapping.
-    private func layout(in size: CGSize, top: CGFloat, usable: CGFloat) -> [String: Placement] {
-        // Hidden fish hang at mid-depth so their real depth never leaks.
-        let depths: [(friend: ReefFriend, depth: Double)] = model.friends
-            .map { ($0, $0.depth(in: model.category) ?? 0.55) }
-            .sorted { $0.depth < $1.depth }
-
-        var lastY: [Int: (y: CGFloat, isYou: Bool)] = [:]
-        var result: [String: Placement] = [:]
-        let floorY = top + usable
-
-        for (index, entry) in depths.enumerated() {
-            let lane = index % 2
-            var y = top + CGFloat(min(entry.depth, ReefViewModel.maxDepth) / ReefViewModel.maxDepth) * usable
-            if let previous = lastY[lane] {
-                // Your fish is bigger and carries a "you are here" tag, so it needs more room.
-                let gap = (previous.isYou || entry.friend.isYou) ? youGap : minGap
-                if y - previous.y < gap { y = previous.y + gap }
-            }
-            y = min(y, floorY + 20)
-            lastY[lane] = (y, entry.friend.isYou)
-            result[entry.friend.id] = Placement(x: size.width * laneX[lane], y: y, facesRight: lane == 0)
-        }
-        return result
-    }
-
-    @ViewBuilder
-    private func fish(for friend: ReefFriend, place: Placement) -> some View {
-        let depth = friend.depth(in: model.category)
-        let isHidden = depth == nil
-        let detail = isHidden ? "hidden" : "\(Int(((depth ?? 0) * 100).rounded()))%"
-        let width: CGFloat = friend.isYou ? 150 : 100
-        let isSelected = model.selectedID == friend.id
-
-        Button {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                model.selectedID = friend.id
-            }
-        } label: {
-            VStack(spacing: 8) {
-                FishView(name: friend.name, detail: detail, width: width,
-                         isYou: friend.isYou, isHidden: isHidden,
-                         facesRight: place.facesRight, isSelected: isSelected,
-                         phase: swimPhases[friend.id] ?? 0)
-                if friend.isYou {
-                    Text("YOU ARE HERE")
-                        .font(.system(size: 10, weight: .heavy, design: .rounded))
-                        .tracking(1)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .glassEffect(.regular, in: .capsule)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .position(x: place.x, y: place.y)
-        .zIndex(friend.isYou ? 1 : 0)
-        .animation(.spring(response: 1.0, dampingFraction: 0.75), value: model.category)
-    }
-}
-
-/// Left-edge ruler: how much of the budget is used at each depth.
-private struct DepthGauge: View {
-    let top: CGFloat
-    let height: CGFloat
-    let width: CGFloat
-
-    private let marks: [(label: String, value: Double)] = [
-        ("0%", 0), ("25%", 0.25), ("50%", 0.5), ("75%", 0.75), ("100%", 1.0),
-    ]
+    private let phases: [String: Double] = ["you": 0.0, "summer": 1.4, "raey": 2.6, "mario": 3.9, "alex": 5.1]
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            ForEach(marks, id: \.label) { mark in
-                let y = top + CGFloat(mark.value / ReefViewModel.maxDepth) * height
-                HStack(spacing: 6) {
-                    Text(mark.label)
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    Capsule().frame(width: 10, height: 1.5)
+            DepthRuler(top: surfaceMargin, trackHeight: trackHeight, totalHeight: oceanHeight)
+
+            HStack(alignment: .top, spacing: 0) {
+                Color.clear.frame(width: rulerWidth)
+                ForEach(Array(model.friends.enumerated()), id: \.element.id) { index, friend in
+                    lane(for: friend, index: index)
                 }
-                .foregroundStyle(.white.opacity(0.6))
-                .position(x: 34, y: y)
+            }
+        }
+        .frame(height: oceanHeight)
+        .background {
+            OceanBackdrop()
+        }
+        .animation(.spring(response: 1.0, dampingFraction: 0.78), value: model.category)
+    }
+
+    private func lane(for friend: ReefFriend, index: Int) -> some View {
+        // Hidden fish hang at mid-depth so their real depth never leaks.
+        let depth = friend.depth(in: model.category)
+        let isHidden = depth == nil
+        let shown = depth ?? 0.55
+        let detail = isHidden ? "hidden" : "\(Int((shown * 100).rounded()))%"
+
+        return VStack(spacing: 0) {
+            // Fishing line from the surface to the fish.
+            ZStack(alignment: .top) {
+                Capsule()
+                    .fill(LinearGradient(colors: [.white.opacity(0.7), .white.opacity(0.25)],
+                                         startPoint: .top, endPoint: .bottom))
+                    .frame(width: 1.5)
+                Circle()
+                    .fill(friend.isYou ? Theme.coral : Color.white)
+                    .frame(width: 9, height: 9)
+                    .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
+            }
+            .frame(height: yTop(for: shown))
+
+            Button {
+                onSelect(friend.id)
+            } label: {
+                FishView(name: friend.name, detail: detail,
+                         isYou: friend.isYou, isHidden: isHidden,
+                         facesRight: index % 2 == 0,
+                         isSelected: model.selectedID == friend.id,
+                         depth: shown, phase: phases[friend.id] ?? 0)
+            }
+            .buttonStyle(.plain)
+            .id("fish-\(friend.id)")
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: oceanHeight)
+        .background {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(.white.opacity(friend.isYou ? 0.10 : 0.04))
+                .padding(.horizontal, 3)
+                .padding(.top, 20)
+        }
+    }
+}
+
+/// Left-edge ruler with a tick every 10% and the sea floor / trench below 100%.
+private struct DepthRuler: View {
+    let top: CGFloat
+    let trackHeight: CGFloat
+    let totalHeight: CGFloat
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            // The trench: darker water below 100% of budget.
+            let floorY = top + CGFloat(1.0 / ReefViewModel.maxDepth) * trackHeight
+            LinearGradient(colors: [.clear, Color.black.opacity(0.4)], startPoint: .top, endPoint: .bottom)
+                .frame(height: totalHeight - floorY)
+                .offset(y: floorY)
+                .allowsHitTesting(false)
+
+            ForEach(0...10, id: \.self) { step in
+                let value = Double(step) / 10
+                let y = top + CGFloat(value / ReefViewModel.maxDepth) * trackHeight
+                HStack(spacing: 5) {
+                    if step % 2 == 0 {
+                        Text("\(step * 10)%")
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    }
+                    Capsule().frame(width: step % 2 == 0 ? 10 : 6, height: 1.5)
+                }
+                .foregroundStyle(.white.opacity(step % 2 == 0 ? 0.65 : 0.35))
+                .frame(width: 50, alignment: .trailing)
+                .position(x: 25, y: y)
             }
 
-            Text("THE TRENCH")
+            Text("SEA FLOOR")
                 .font(.system(size: 9, weight: .heavy, design: .rounded))
                 .tracking(1.5)
-                .foregroundStyle(.white.opacity(0.4))
-                .position(x: width - 56, y: top + height + 4)
+                .foregroundStyle(.white.opacity(0.55))
+                .position(x: 25, y: floorY + 22)
+
+            Text("THE TRENCH")
+                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .tracking(3)
+                .foregroundStyle(.white.opacity(0.35))
+                .frame(maxWidth: .infinity)
+                .offset(y: floorY + 90)
         }
         .accessibilityHidden(true)
     }
 }
+
+// MARK: - Bottom card
 
 private struct YourFishCard: View {
     var model: ReefViewModel
@@ -326,7 +368,7 @@ private struct YourFishCard: View {
         }
         .foregroundStyle(.white)
         .padding(18)
-        .glassEffect(.regular.tint(Color.black.opacity(0.12)), in: .rect(cornerRadius: 26))
+        .glassEffect(.regular.tint(Color.black.opacity(0.25)), in: .rect(cornerRadius: 26))
         .animation(.spring(response: 0.6, dampingFraction: 0.85), value: model.category)
         .animation(.spring(response: 0.6, dampingFraction: 0.85), value: model.selectedID)
     }

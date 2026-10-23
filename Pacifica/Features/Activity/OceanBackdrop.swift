@@ -57,6 +57,7 @@ struct OceanBackdrop: View {
 
     private func drawRays(_ context: inout GraphicsContext, size: CGSize, t: Double) {
         let rayCount = 4
+        let rayLength = min(size.height * 0.72, 760)
         for i in 0..<rayCount {
             let f = Double(i)
             let sway = sin(t * 0.25 + f * 1.7) * 18
@@ -65,15 +66,15 @@ struct OceanBackdrop: View {
             var ray = Path()
             ray.move(to: CGPoint(x: topX - spread * 0.4, y: 0))
             ray.addLine(to: CGPoint(x: topX + spread * 0.4, y: 0))
-            ray.addLine(to: CGPoint(x: topX + spread * 1.9 + 70, y: size.height * 0.72))
-            ray.addLine(to: CGPoint(x: topX - spread * 1.9 + 70, y: size.height * 0.72))
+            ray.addLine(to: CGPoint(x: topX + spread * 1.9 + 70, y: rayLength))
+            ray.addLine(to: CGPoint(x: topX - spread * 1.9 + 70, y: rayLength))
             ray.closeSubpath()
             context.fill(
                 ray,
                 with: .linearGradient(
                     Gradient(colors: [.white.opacity(0.20), .white.opacity(0)]),
                     startPoint: CGPoint(x: topX, y: 0),
-                    endPoint: CGPoint(x: topX, y: size.height * 0.72)
+                    endPoint: CGPoint(x: topX, y: rayLength)
                 )
             )
         }

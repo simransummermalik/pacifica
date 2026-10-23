@@ -1,120 +1,92 @@
 import SwiftUI
 
-/// A friendly fish. Drawn in code so it stays sharp, takes palette colors and can swim.
-/// The graphic faces right by default; `facesRight: false` mirrors it (the label never flips).
+/// A friend's fish, drawn with the `fish.fill` SF Symbol, plus a name tag.
+/// The fish tilts nose-up near the surface and nose-down when deep, and wiggles as it swims.
 struct FishView: View {
     let name: String
     let detail: String
-    let width: CGFloat
     var isYou = false
     var isHidden = false
     var facesRight = true
     var isSelected = false
+    /// 0 = surface, 1 = whole budget used. Drives the tilt.
+    var depth: Double = 0.5
     var phase: Double = 0
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var height: CGFloat { width * 0.56 }
-    private var bodyFill: Color { isYou ? Theme.coral : .white }
-    private var tailFill: Color { isYou ? .white : Theme.coral }
-    private var labelColor: Color { isYou ? .white : Theme.charcoal }
+    private var symbolSize: CGFloat { isYou ? 58 : 40 }
+    private var tilt: Double { (min(max(depth, 0), 1.15) - 0.5) * 50 }
 
     var body: some View {
-        TimelineView(.animation(paused: reduceMotion)) { timeline in
-            let t = reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate
-            let sway = sin(t * 0.7 + phase) * 8
-            let bob = sin(t * 1.1 + phase * 1.3) * 4
-            let wag = sin(t * 6 + phase) * 14
-
-            ZStack {
-                fishGraphic(wag: wag)
-                    .scaleEffect(x: facesRight ? 1 : -1)
-
-                label
-                    .offset(x: (facesRight ? 1 : -1) * width * 0.11)
-            }
-            .frame(width: width, height: height)
-            .opacity(isHidden ? 0.5 : 1)
-            .shadow(color: .white.opacity(isSelected ? 0.85 : 0), radius: 14)
-            .offset(x: sway, y: bob)
+        VStack(spacing: 8) {
+            fish
+            tag
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(name), \(detail)")
     }
 
-    private func fishGraphic(wag: Double) -> some View {
-        HStack(spacing: -width * 0.04) {
-            FishTail()
-                .fill(tailFill)
-                .frame(width: width * 0.3, height: height * 0.78)
-                .rotationEffect(.degrees(wag), anchor: .trailing)
+    private var fish: some View {
+        TimelineView(.animation(paused: reduceMotion)) { timeline in
+            let t = reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate
+            let wiggle = sin(t * 3.2 + phase) * 5
+            let sway = sin(t * 0.8 + phase) * 4
+            let bob = sin(t * 1.2 + phase * 1.3) * 3
 
-            ZStack {
-                Ellipse().fill(bodyFill)
-                Ellipse()
-                    .fill(LinearGradient(colors: [.white.opacity(0.4), .clear],
-                                         startPoint: .top, endPoint: .center))
-                if isHidden {
-                    Ellipse().strokeBorder(.white.opacity(0.9), style: StrokeStyle(lineWidth: 2, dash: [5, 4]))
+            Image(systemName: isHidden ? "fish" : "fish.fill")
+                .font(.system(size: symbolSize, weight: .regular))
+                .foregroundStyle(isYou ? Theme.coral : Color.white)
+                .opacity(isHidden ? 0.6 : 1)
+                .shadow(color: .black.opacity(0.25), radius: 4, y: 3)
+                .shadow(color: isSelected ? .white.opacity(0.9) : .clear, radius: 12)
+                .rotationEffect(.degrees(tilt + wiggle))
+                .scaleEffect(x: facesRight ? 1 : -1)
+                .overlay(alignment: .topTrailing) {
+                    if isHidden {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: symbolSize * 0.3))
+                            .foregroundStyle(.white)
+                            .padding(5)
+                            .background(Theme.charcoal.opacity(0.7), in: Circle())
+                            .offset(x: 8, y: -8)
+                    }
                 }
-                if isSelected {
-                    Ellipse().strokeBorder(.white, lineWidth: 3)
-                }
-            }
-            .frame(width: width * 0.78, height: height)
-            .overlay(alignment: .topTrailing) {
-                Circle()
-                    .fill(Theme.charcoal)
-                    .frame(width: height * 0.11, height: height * 0.11)
-                    .offset(x: -width * 0.1, y: height * 0.2)
-            }
+                .offset(x: sway, y: bob)
         }
+        .frame(width: symbolSize * 1.4, height: symbolSize * 1.1)
     }
 
-    private var label: some View {
-        VStack(spacing: 1) {
-            HStack(spacing: 3) {
-                if isHidden {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: width * 0.1))
-                }
-                Text(name)
-                    .font(.system(size: width * (isYou ? 0.18 : 0.16), weight: .bold, design: .rounded))
-            }
+    private var tag: some View {
+        VStack(spacing: 0) {
+            Text(name)
+                .font(.system(size: isYou ? 14 : 12, weight: .bold, design: .rounded))
             Text(detail)
-                .font(.system(size: width * 0.1, weight: .semibold, design: .rounded))
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
                 .opacity(0.7)
         }
-        .foregroundStyle(labelColor)
+        .foregroundStyle(isYou ? Color.white : Theme.charcoal)
         .lineLimit(1)
-        .minimumScaleFactor(0.6)
-        .frame(width: width * 0.55)
-    }
-}
-
-/// Curved fan tail. The pointed end is on the right, where it joins the body.
-private struct FishTail: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.maxX, y: rect.midY))
-        path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.minY),
-                          control: CGPoint(x: rect.midX, y: rect.midY - rect.height * 0.1))
-        path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY),
-                          control: CGPoint(x: rect.minX + rect.width * 0.18, y: rect.midY))
-        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.midY),
-                          control: CGPoint(x: rect.midX, y: rect.midY + rect.height * 0.1))
-        path.closeSubpath()
-        return path
+        .minimumScaleFactor(0.7)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(
+            Capsule().fill(isYou ? Theme.coral : Color.white.opacity(0.92))
+        )
+        .overlay {
+            if isSelected { Capsule().strokeBorder(.white, lineWidth: 2) }
+        }
+        .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
     }
 }
 
 #Preview {
     ZStack {
         Color(red: 0.03, green: 0.45, blue: 0.5)
-        VStack(spacing: 30) {
-            FishView(name: "You", detail: "42%", width: 150, isYou: true, isSelected: true)
-            FishView(name: "Summer", detail: "18%", width: 100, facesRight: false)
-            FishView(name: "Mario", detail: "hidden", width: 100, isHidden: true)
+        HStack(spacing: 24) {
+            FishView(name: "You", detail: "36%", isYou: true, isSelected: true, depth: 0.36)
+            FishView(name: "Summer", detail: "23%", facesRight: false, depth: 0.23)
+            FishView(name: "Mario", detail: "hidden", isHidden: true, depth: 0.55)
         }
     }
 }
