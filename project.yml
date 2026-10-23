@@ -1,4 +1,8 @@
 name: Pacifica
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift.git
+    from: 2.0.0
 options:
   bundleIdPrefix: com.pacifica
   deploymentTarget:
@@ -12,9 +16,12 @@ targets:
     type: application
     platform: iOS
     sources: [Pacifica]
+    dependencies:
+      - package: Supabase
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.pacifica.app
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_NSCameraUsageDescription: Pacifica uses the camera for your optional daily selfie.
         TARGETED_DEVICE_FAMILY: "1"

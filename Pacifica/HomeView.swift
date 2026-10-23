@@ -1,9 +1,21 @@
+import Foundation
 import SwiftUI
 
 struct HomeView: View {
+    let userID: UUID
+
     @State private var hideBalance = false
     @State private var showQR = false
+    @State private var balanceAction: BalanceAction?
     @State private var oceanConditions = OceanConditionsViewModel()
+    @StateObject private var wallet: HomeWalletViewModel
+    @StateObject private var dailySelfie: DailySelfieViewModel
+
+    init(userID: UUID) {
+        self.userID = userID
+        _wallet = StateObject(wrappedValue: HomeWalletViewModel(userID: userID))
+        _dailySelfie = StateObject(wrappedValue: DailySelfieViewModel(userID: userID))
+    }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -13,8 +25,16 @@ struct HomeView: View {
                 GlassEffectContainer(spacing: 16) {
                     VStack(spacing: 16) {
                         TopBar(onQRTap: { showQR = true })
+                        DailySelfieView(viewModel: dailySelfie)
                         OceanConditionsCard(viewModel: oceanConditions)
-                        BalanceCard(hideBalance: $hideBalance)
+                        BalanceCard(
+                            hideBalance: $hideBalance,
+                            balance: wallet.formattedBalance,
+                            isLoading: wallet.isLoading,
+                            errorMessage: wallet.errorMessage,
+                            onAddMoney: { balanceAction = .add },
+                            onWithdraw: { balanceAction = .withdraw }
+                        )
                         SavingsCard()
                     }
                 }
@@ -25,6 +45,14 @@ struct HomeView: View {
         }
         .fullScreenCover(isPresented: $showQR) {
             QRCodeView()
+        }
+        .task(id: userID) {
+            await wallet.load()
+        }
+        .sheet(item: $balanceAction) { action in
+            BalanceAdjustmentView(action: action) { amount in
+                await wallet.adjust(delta: action.delta(for: amount))
+            }
         }
     }
 }
@@ -66,6 +94,11 @@ private struct CircleButton: View {
 
 private struct BalanceCard: View {
     @Binding var hideBalance: Bool
+    let balance: String
+    let isLoading: Bool
+    let errorMessage: String?
+    let onAddMoney: () -> Void
+    let onWithdraw: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -86,13 +119,24 @@ private struct BalanceCard: View {
                 }
             }
 
-            Text(hideBalance ? "$•••" : "$0.00")
-                .font(.system(size: 76, weight: .bold, design: .rounded))
-                .minimumScaleFactor(0.6)
-                .lineLimit(1)
+            if isLoading {
+                ProgressView()
+                    .frame(height: 92)
+            } else {
+                Text(hideBalance ? "$•••" : balance)
+                    .font(.system(size: 76, weight: .bold, design: .rounded))
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
+            }
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
 
             HStack(spacing: 12) {
-                Button {} label: {
+                Button(action: onAddMoney) {
                     Text("Add money")
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(Color.white)
@@ -100,7 +144,7 @@ private struct BalanceCard: View {
                 }
                 .buttonStyle(.glassProminent)
                 .tint(Theme.accent)
-                Button {} label: {
+                Button(action: onWithdraw) {
                     Text("Withdraw")
                         .font(.title3.weight(.semibold))
                         .frame(maxWidth: .infinity, minHeight: 44)
@@ -113,6 +157,76 @@ private struct BalanceCard: View {
         }
         .padding(20)
         .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardRadius))
+    }
+}
+
+private enum BalanceAction: String, Identifiable {
+    case add
+    case withdraw
+
+    var id: String { rawValue }
+    var title: String { self == .add ? "Add money" : "Withdraw" }
+    var sign: Decimal { self == .add ? 1 : -1 }
+
+    func delta(for amount: Decimal) -> Decimal {
+        amount * sign
+    }
+}
+
+private struct BalanceAdjustmentView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let action: BalanceAction
+    let submit: (Decimal) async -> Bool
+
+    @State private var amountText = "50"
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(action.title) {
+                    TextField("Amount", text: $amountText)
+                        .keyboardType(.decimalPad)
+
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+
+                    Button(action.title) {
+                        Task { await save() }
+                    }
+                    .disabled(isSaving)
+                }
+            }
+            .navigationTitle("Demo balance")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func save() async {
+        guard let amount = Decimal(string: amountText), amount > 0 else {
+            errorMessage = "Enter a valid amount."
+            return
+        }
+
+        isSaving = true
+        errorMessage = nil
+        let succeeded = await submit(amount)
+        isSaving = false
+
+        if succeeded {
+            dismiss()
+        } else {
+            errorMessage = "The balance could not be updated."
+        }
     }
 }
 
@@ -143,5 +257,5 @@ private struct SavingsCard: View {
 }
 
 #Preview {
-    HomeView()
+    HomeView(userID: UUID())
 }
