@@ -7,34 +7,32 @@ struct ActivityView: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            ScrollView {
-                VStack(spacing: 0) {
-                    TopOfReefRow(model: model) { id in focus(on: id, using: proxy) }
-                        .padding(.top, 6)
-                        .padding(.bottom, 26)
-                        .frame(maxWidth: .infinity)
-                        .background { SkyGradient() }
-
-                    OceanTrack(model: model) { id in focus(on: id, using: proxy) }
-                }
-            }
-            .scrollIndicators(.hidden)
-            .background {
-                // Behind everything: sky color above the content, deep water below it, so bounces never flash white.
-                VStack(spacing: 0) {
-                    OceanPalette.skyTop
-                    OceanPalette.deep
-                }
-                .ignoresSafeArea()
-            }
-            .safeAreaInset(edge: .top, spacing: 0) {
+            // Header, scroll area and card are stacked (not overlaid), so the scroll area is exactly the visible
+            // space between them and "centered" really means the middle of what you can see.
+            VStack(spacing: 0) {
                 PinnedHeader(model: model) { id in focus(on: id, using: proxy) }
-            }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
+                    .background { OceanPalette.skyTop.ignoresSafeArea(edges: .top) }
+
+                ScrollView {
+                    VStack(spacing: 0) {
+                        TopOfReefRow(model: model) { id in focus(on: id, using: proxy) }
+                            .padding(.top, 6)
+                            .padding(.bottom, 26)
+                            .frame(maxWidth: .infinity)
+                            .background { SkyGradient() }
+
+                        OceanTrack(model: model) { id in focus(on: id, using: proxy) }
+                    }
+                }
+                .scrollIndicators(.hidden)
+                .scrollEdgeEffectStyle(.soft, for: .top)
+
                 YourFishCard(model: model)
                     .padding(.horizontal, 16)
+                    .padding(.top, 10)
                     .padding(.bottom, 18)
             }
+            .background { OceanPalette.deep.ignoresSafeArea() }
             .task {
                 // Dive in: after the sky and podium show, swim down to your fish.
                 try? await Task.sleep(for: .seconds(1.2))
@@ -97,12 +95,6 @@ private struct PinnedHeader: View {
         }
         .padding(.top, 6)
         .padding(.bottom, 10)
-        .background {
-            Rectangle()
-                .fill(.regularMaterial)
-                .mask(LinearGradient(colors: [.black, .black, .clear], startPoint: .top, endPoint: .bottom))
-                .ignoresSafeArea(edges: .top)
-        }
     }
 }
 
