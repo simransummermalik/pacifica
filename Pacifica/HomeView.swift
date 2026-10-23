@@ -12,6 +12,7 @@ struct HomeView: View {
                 GlassEffectContainer(spacing: 16) {
                     VStack(spacing: 16) {
                         TopBar(onQRTap: { showQR = true })
+                        OceanConditionsCard()
                         BalanceCard(hideBalance: $hideBalance)
                         SavingsCard()
                         FishingCard()
