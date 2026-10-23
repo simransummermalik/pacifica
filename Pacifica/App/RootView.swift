@@ -33,7 +33,7 @@ struct RootView: View {
                 HomeView(userID: userID, onOpenActivity: { selection = .activity })
             }
             Tab(RootTab.activity.title, systemImage: RootTab.activity.systemImage, value: .activity) {
-                ActivityView()
+                ActivityView(userID: userID)
             }
             Tab(RootTab.pay.title, systemImage: RootTab.pay.systemImage, value: .pay) {
                 PayView()
