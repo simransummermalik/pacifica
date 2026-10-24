@@ -21,6 +21,57 @@ struct ActivityService {
             .value
     }
 
+    func fetchSpendingTransactions(limit: Int = 500) async throws -> [SpendingTransaction] {
+        try await client
+            .from("spending_transactions")
+            .select("id, user_id, merchant, amount, category, spent_at, visibility, source_feed_post_id")
+            .eq("visibility", value: "circle")
+            .order("spent_at", ascending: false)
+            .limit(limit)
+            .execute()
+            .value
+    }
+
+    func createSpendingTransaction(
+        merchant: String,
+        amount: Decimal,
+        category: ReefCategory,
+        spentAt: String? = nil,
+        visibility: String = "circle"
+    ) async throws -> SpendingTransaction {
+        guard category != .all,
+              !merchant.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              amount > 0,
+              ["circle", "private"].contains(visibility) else {
+            throw PacificaServiceError.invalidInput("Enter a merchant, category, and amount greater than zero.")
+        }
+
+        guard let userID = client.auth.currentUser?.id else {
+            throw PacificaServiceError.notSignedIn
+        }
+
+        return try await client
+            .from("spending_transactions")
+            .insert(SpendingTransactionInsert(
+                userID: userID,
+                merchant: merchant.trimmingCharacters(in: .whitespacesAndNewlines),
+                amount: amount,
+                category: category.rawValue,
+                spentAt: spentAt ?? Self.iso8601String(Date()),
+                visibility: visibility
+            ))
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    private static func iso8601String(_ date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: date)
+    }
+
     func fetchProfiles() async throws -> [ActivityProfile] {
         try await client
             .from("profiles")
@@ -130,5 +181,23 @@ private struct ActivityCommentInsert: Encodable {
         case postID = "post_id"
         case userID = "user_id"
         case body
+    }
+}
+
+private struct SpendingTransactionInsert: Encodable {
+    let userID: UUID
+    let merchant: String
+    let amount: Decimal
+    let category: String
+    let spentAt: String?
+    let visibility: String
+
+    enum CodingKeys: String, CodingKey {
+        case userID = "user_id"
+        case merchant
+        case amount
+        case category
+        case spentAt = "spent_at"
+        case visibility
     }
 }

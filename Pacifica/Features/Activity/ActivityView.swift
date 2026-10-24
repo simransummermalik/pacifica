@@ -1,69 +1,138 @@
 import SwiftUI
+import UIKit
 
-/// The Activity tab: a tall ocean you scroll down. Each friend swims in their own lane, and the deeper their
+/// The Reef tab: a tall ocean you scroll down. Each friend swims in their own lane, and the deeper their
 /// fish, the more of their own budget they've used. Shallowest is first. Only percentages are shown.
 struct ActivityView: View {
     let userID: UUID
     @State private var model = ReefViewModel()
     @State private var showTransactions = false
+    @State private var showGoals = false
+    @State private var showChallenges = false
+    @State private var showSelfieCheckIn = false
+    @State private var hasPromptedForSelfie = false
+    @StateObject private var dailySelfie: DailySelfieViewModel
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var scrollPosition = ScrollPosition()
+    @State private var metrics = ScrollMetrics()
+    /// Height of everything above the ocean, and each fish's distance below the ocean's top edge.
+    @State private var headerHeight: CGFloat = 0
+    @State private var fishTops: [String: CGFloat] = [:]
+
+    private struct ScrollMetrics: Equatable {
+        var containerHeight: CGFloat = 0
+        var contentHeight: CGFloat = 0
+        var bottomInset: CGFloat = 0
+    }
+
+    init(userID: UUID) {
+        self.userID = userID
+        _dailySelfie = StateObject(wrappedValue: DailySelfieViewModel(userID: userID))
+    }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            // Header, scroll area and card are stacked (not overlaid), so the scroll area is exactly the visible
-            // space between them and "centered" really means the middle of what you can see.
+        GeometryReader { geo in
             VStack(spacing: 0) {
-                PinnedHeader(model: model) { id in focus(on: id, using: proxy) }
-
                 ScrollView {
                     VStack(spacing: 0) {
-                        TopOfReefRow(model: model, onOpenTransactions: { showTransactions = true }) { id in focus(on: id, using: proxy) }
-                            .padding(.top, 6)
-                            .padding(.bottom, 26)
-                            .frame(maxWidth: .infinity)
+                        // Title, categories, podium and Transactions button all scroll away with the ocean.
+                        VStack(spacing: 0) {
+                            Color.clear.frame(height: geo.safeAreaInsets.top)
+                            PinnedHeader(model: model) { id in focus(on: id, topInset: geo.safeAreaInsets.top) }
+                            TopOfReefRow(
+                                model: model,
+                                onOpenTransactions: { showTransactions = true },
+                                onOpenGoals: { showGoals = true },
+                                onOpenChallenges: { showChallenges = true },
+                                onOpenSelfie: { showSelfieCheckIn = true }
+                            ) { id in focus(on: id, topInset: geo.safeAreaInsets.top) }
+                                .padding(.top, 6)
+                                .padding(.bottom, 40)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = $0 }
 
-                        OceanTrack(model: model) { id in focus(on: id, using: proxy) }
+                        // The ocean is its own blue panel on the white page. The extra water at the bottom
+                        // sits behind the "Your fish" card.
+                        OceanTrack(model: model, userID: userID, selfiesByUserID: dailySelfie.imagesByUserID, onTops: { fishTops = $0 }) { id in focus(on: id, topInset: geo.safeAreaInsets.top) }
+                            .padding(.bottom, 150)
+                            .background {
+                                UnevenRoundedRectangle(topLeadingRadius: 32, topTrailingRadius: 32)
+                                    .fill(.clear)
+                                    .overlay { OceanBackdrop() }
+                                    .clipShape(UnevenRoundedRectangle(topLeadingRadius: 32, topTrailingRadius: 32))
+                            }
                     }
                 }
                 .scrollIndicators(.hidden)
-                .overlay(alignment: .top) {
-                    // Soft edge under the categories: the ocean blurs out as it scrolls up behind the header.
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                        .mask(LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom))
-                        .frame(height: 32)
-                        .allowsHitTesting(false)
+                .scrollPosition($scrollPosition)
+                .onScrollGeometryChange(for: ScrollMetrics.self) { g in
+                    ScrollMetrics(containerHeight: g.containerSize.height,
+                                  contentHeight: g.contentSize.height,
+                                  bottomInset: g.contentInsets.bottom)
+                } action: { _, new in
+                    metrics = new
                 }
-
-                YourFishCard(model: model)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 10)
-                    .padding(.bottom, 18)
+                .ignoresSafeArea(edges: [.top, .bottom])
+                // The card floats over the ocean: fish and labels scroll underneath it and blur through the glass.
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    YourFishCard(model: model)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 10)
+                        .padding(.bottom, 18)
+                }
             }
-            .background { OceanBackdrop().ignoresSafeArea() }
+            .background(AppBackground())
             .sheet(isPresented: $showTransactions) {
                 TransactionsView(userID: userID)
+            }
+            .sheet(isPresented: $showGoals) {
+                GoalsView(userID: userID)
+            }
+            .sheet(isPresented: $showChallenges) {
+                ChallengesView(userID: userID)
+            }
+            .sheet(isPresented: $showSelfieCheckIn) {
+                SelfieCheckInView(viewModel: dailySelfie)
+            }
+            .onAppear {
+                hasPromptedForSelfie = false
+                Task { await refreshSelfiePrompt() }
+            }
+            .onDisappear { hasPromptedForSelfie = false }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                Task { await refreshSelfiePrompt() }
             }
             .task {
                 // Dive in: after the sky and podium show, swim down to your fish.
                 try? await Task.sleep(for: .seconds(1.2))
-                focus(on: "you", using: proxy)
+                focus(on: "you", topInset: geo.safeAreaInsets.top)
             }
         }
     }
 
-    private func focus(on id: String, using proxy: ScrollViewProxy) {
+    /// Selects a friend and scrolls so their fish sits in the middle of the visible water (between the
+    /// status bar and the "Your fish" card).
+    private func focus(on id: String, topInset: CGFloat) {
         withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) {
             model.selectedID = id
         }
+        guard let fishTop = fishTops[id], metrics.containerHeight > 0 else { return }
+        let fishCenter = headerHeight + fishTop + (id == "you" ? 55 : 50)
+        let visibleBottom = metrics.containerHeight - metrics.bottomInset
+        let visibleCenter = (topInset + visibleBottom) / 2
+        let maxOffset = max(0, metrics.contentHeight - visibleBottom)
+        let target = min(max(0, fishCenter - visibleCenter), maxOffset)
         withAnimation(.easeInOut(duration: 0.9)) {
-            proxy.scrollTo("fish-\(id)", anchor: .center)
+            scrollPosition.scrollTo(y: target)
         }
     }
 }
 
 // MARK: - Sky and pinned header
 
-/// Title and category chips stay on screen while you dive, so you can switch category from anywhere in the ocean.
+/// Title and category chips at the top of the page; they scroll with the ocean.
 private struct PinnedHeader: View {
     @Bindable var model: ReefViewModel
     let onFocusYou: (String) -> Void
@@ -71,11 +140,11 @@ private struct PinnedHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Activity")
+                Text("Reef")
                     .font(.title.bold())
                 Text("resets Monday")
                     .font(.subheadline)
-                    .foregroundStyle(OceanPalette.ink.opacity(0.65))
+                    .foregroundStyle(Theme.text.opacity(0.65))
                 Spacer()
                 Button {
                     onFocusYou("you")
@@ -92,7 +161,7 @@ private struct PinnedHeader: View {
 
             CategoryChips(model: model, onChange: { onFocusYou(model.selectedID) })
         }
-        .foregroundStyle(OceanPalette.ink)
+        .foregroundStyle(Theme.text)
         .padding(.top, 6)
         .padding(.bottom, 10)
     }
@@ -126,7 +195,7 @@ private struct CategoryChips: View {
         } label: {
             Label(category.title, systemImage: category.systemImage)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(isSelected ? Color.white : OceanPalette.ink)
+                .foregroundStyle(isSelected ? Color.white : Theme.text)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
                 .glassEffect(isSelected ? .regular.tint(Theme.accent).interactive() : .regular.interactive(),
@@ -143,6 +212,9 @@ private struct CategoryChips: View {
 private struct TopOfReefRow: View {
     var model: ReefViewModel
     let onOpenTransactions: () -> Void
+    let onOpenGoals: () -> Void
+    let onOpenChallenges: () -> Void
+    let onOpenSelfie: () -> Void
     let onSelect: (String) -> Void
 
     var body: some View {
@@ -166,17 +238,29 @@ private struct TopOfReefRow: View {
             }
             .scrollIndicators(.hidden)
 
-            Button(action: onOpenTransactions) {
-                Label("Transactions", systemImage: "list.bullet.rectangle")
-                    .font(.subheadline.weight(.semibold))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .glassEffect(.regular.interactive(), in: .capsule)
+            ScrollView(.horizontal) {
+                HStack(spacing: 8) {
+                    actionButton("Transactions", systemImage: "list.bullet.rectangle", action: onOpenTransactions)
+                    actionButton("Goals", systemImage: "target", action: onOpenGoals)
+                    actionButton("Challenges", systemImage: "trophy", action: onOpenChallenges)
+                    actionButton("Selfie", systemImage: "camera", action: onOpenSelfie)
+                }
+                .padding(.horizontal, 20)
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 20)
+            .scrollIndicators(.hidden)
         }
-        .foregroundStyle(OceanPalette.ink)
+        .foregroundStyle(Theme.text)
+    }
+
+    private func actionButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .glassEffect(.regular.interactive(), in: .capsule)
+        }
+        .buttonStyle(.plain)
     }
 
     private func entry(_ ranked: RankedFriend) -> some View {
@@ -187,7 +271,7 @@ private struct TopOfReefRow: View {
             VStack(spacing: 6) {
                 Text(ranked.friend.initials)
                     .font(.system(size: isFirst ? 18 : 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(OceanPalette.ink)
+                    .foregroundStyle(Theme.text)
                     .frame(width: isFirst ? 62 : 52, height: isFirst ? 62 : 52)
                     .glassEffect(ranked.friend.isYou ? .regular.tint(Theme.yellow) : .regular, in: .circle)
                     .overlay(alignment: .topTrailing) {
@@ -214,6 +298,9 @@ private struct TopOfReefRow: View {
 /// so fish aren't tied to one lane.
 private struct OceanTrack: View {
     var model: ReefViewModel
+    let userID: UUID
+    var selfiesByUserID: [UUID: UIImage]
+    var onTops: ([String: CGFloat]) -> Void = { _ in }
     let onSelect: (String) -> Void
 
     private let oceanHeight: CGFloat = 1300
@@ -256,6 +343,8 @@ private struct OceanTrack: View {
         }
         .frame(height: oceanHeight)
         .animation(.spring(response: 1.0, dampingFraction: 0.78), value: model.category)
+        .onAppear { onTops(layout(width: 0).mapValues(\.top)) }
+        .onChange(of: model.category) { onTops(layout(width: 0).mapValues(\.top)) }
     }
 
     /// Hidden fish hang at mid-depth so their real depth never leaks.
@@ -289,6 +378,7 @@ private struct OceanTrack: View {
         let isHidden = friend.depth(in: model.category) == nil
         let detail = isHidden ? "hidden" : "\(Int((place.depth * 100).rounded()))%"
         let nodeWidth: CGFloat = friend.isYou ? 110 : 92
+        let selfieImage = friend.isYou ? selfiesByUserID[userID] : UUID(uuidString: friend.id).flatMap { selfiesByUserID[$0] }
 
         return Button {
             onSelect(friend.id)
@@ -297,6 +387,7 @@ private struct OceanTrack: View {
                      isYou: friend.isYou, isHidden: isHidden,
                      facesRight: place.facesRight,
                      isSelected: model.selectedID == friend.id,
+                     selfieImage: selfieImage,
                      depth: place.depth, phase: phases[friend.id] ?? 0)
                 .frame(width: nodeWidth)
         }
@@ -382,7 +473,7 @@ private struct YourFishCard: View {
         }
         .foregroundStyle(.white)
         .padding(18)
-        .glassEffect(.regular.tint(Color.black.opacity(0.25)), in: .rect(cornerRadius: 26))
+        .glassEffect(.regular, in: .rect(cornerRadius: 26))
         .animation(.spring(response: 0.6, dampingFraction: 0.85), value: model.category)
         .animation(.spring(response: 0.6, dampingFraction: 0.85), value: model.selectedID)
     }
@@ -416,4 +507,38 @@ private struct DepthBar: View {
 
 #Preview {
     ActivityView(userID: UUID())
+}
+
+private extension ActivityView {
+    func refreshSelfiePrompt() async {
+        await dailySelfie.load()
+        guard dailySelfie.isEligible, !hasPromptedForSelfie else { return }
+        hasPromptedForSelfie = true
+        showSelfieCheckIn = true
+    }
+}
+
+private struct SelfieCheckInView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var viewModel: DailySelfieViewModel
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                DailySelfieView(viewModel: viewModel)
+                    .padding(16)
+            }
+            .navigationTitle("Selfie check-in")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Later") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                        .disabled(viewModel.image == nil || viewModel.isSaving)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
 }

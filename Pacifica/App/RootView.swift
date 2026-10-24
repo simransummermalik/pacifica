@@ -9,7 +9,7 @@ enum RootTab: CaseIterable, Hashable {
         switch self {
         case .bank: "building.columns"
         case .pay: "dollarsign"
-        case .activity: "clock"
+        case .activity: "water.waves"
         }
     }
 
@@ -17,7 +17,7 @@ enum RootTab: CaseIterable, Hashable {
         switch self {
         case .bank: "Bank"
         case .pay: "Pay"
-        case .activity: "Activity"
+        case .activity: "Reef"
         }
     }
 }

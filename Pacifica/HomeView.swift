@@ -5,13 +5,11 @@ struct HomeView: View {
     let askPacifica: AskPacificaViewModel
     var onOpenActivity: () -> Void = {}
     @StateObject private var wallet = WalletViewModel()
-    @StateObject private var dailySelfie: DailySelfieViewModel
     @State private var profile: Profile?
     init(userID: UUID, askPacifica: AskPacificaViewModel, onOpenActivity: @escaping () -> Void = {}) {
         self.userID = userID
         self.askPacifica = askPacifica
         self.onOpenActivity = onOpenActivity
-        _dailySelfie = StateObject(wrappedValue: DailySelfieViewModel(userID: userID))
     }
 
     @State private var hideBalance = false
@@ -37,7 +35,6 @@ struct HomeView: View {
                             askDraft: $askDraft,
                             onAsk: ask
                         )
-                        DailySelfieView(viewModel: dailySelfie)
                         OceanConditionsCard(viewModel: oceanConditions)
                         BalanceCard(hideBalance: $hideBalance, wallet: wallet, onMoneyAction: { moneySheet = $0 }, onOpen: { showCash = true })
                         SavingsCard(onOpen: { showSavings = true })
@@ -310,7 +307,7 @@ private struct FishingCard: View {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
-                        Text("Activity")
+                        Text("Reef")
                             .font(.title3.weight(.semibold))
                         Image(systemName: "chevron.right")
                             .font(.subheadline.weight(.semibold))
@@ -331,7 +328,7 @@ private struct FishingCard: View {
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: Theme.cardRadius))
-        .accessibilityHint("Opens Activity")
+        .accessibilityHint("Opens Reef")
     }
 }
 

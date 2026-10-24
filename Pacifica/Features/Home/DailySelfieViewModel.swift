@@ -8,6 +8,7 @@ final class DailySelfieViewModel: ObservableObject {
 
     @Published private(set) var selfie: DailySelfie?
     @Published private(set) var image: UIImage?
+    @Published private(set) var imagesByUserID: [UUID: UIImage] = [:]
     @Published private(set) var isLoading = false
     @Published private(set) var isSaving = false
     @Published var errorMessage: String?
@@ -34,19 +35,29 @@ final class DailySelfieViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
-            let latest = try await SelfieService().fetchLatestSelfie(userID: userID)
-            selfie = latest
+            let service = SelfieService()
+            async let ownRequest = service.fetchLatestSelfie(userID: userID)
+            async let activeRequest = service.fetchActiveSelfies()
 
-            guard let latest,
-                  let expiryDate,
-                  expiryDate > Date()
-            else {
-                image = nil
-                return
+            let own = try await ownRequest
+            let active = try await activeRequest
+            selfie = own
+
+            var loadedImages: [UUID: UIImage] = [:]
+            for activeSelfie in active {
+                do {
+                    let data = try await service.downloadSelfie(path: activeSelfie.storagePath)
+                    if let image = UIImage(data: data) {
+                        loadedImages[activeSelfie.userID] = image
+                    }
+                } catch {
+                    // One inaccessible friend image should not hide the rest of the reef.
+                    continue
+                }
             }
 
-            let data = try await SelfieService().downloadSelfie(path: latest.storagePath)
-            image = UIImage(data: data)
+            imagesByUserID = loadedImages
+            image = loadedImages[userID]
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -65,6 +76,7 @@ final class DailySelfieViewModel: ObservableObject {
         do {
             selfie = try await SelfieService().uploadSelfie(imageData: data, userID: userID)
             self.image = image
+            imagesByUserID[userID] = image
             return true
         } catch {
             errorMessage = error.localizedDescription
@@ -81,6 +93,7 @@ final class DailySelfieViewModel: ObservableObject {
             try await SelfieService().removeLatestSelfie(userID: userID)
             selfie = nil
             image = nil
+            imagesByUserID[userID] = nil
         } catch {
             errorMessage = error.localizedDescription
         }
